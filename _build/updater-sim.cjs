@@ -57,7 +57,7 @@ function check(releases, installed) {
 
 (async () => {
   const releases = await get("https://api.github.com/repos/" + REPO + "/releases?per_page=20");
-  for (const installed of [[1, 1, 0], [1, 0, 0]]) {
+  for (const installed of [[1, 1, 1], [1, 1, 0], [1, 0, 0]]) {
     const out = check(releases, installed);
     const label = installed.join(".");
     if (!out) {
