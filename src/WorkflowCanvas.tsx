@@ -20,8 +20,10 @@ import {
 } from "./workflowGraph";
 import {
   BINDINGS,
+  applyBinding,
   bindingKeyOf,
   bindingOf,
+  bindingValue,
   fieldPreview,
   resolvedText,
   token,
@@ -35,6 +37,7 @@ type Props = {
   info: ObjectInfo;
   settings: Settings;
   onChange: (next: Workflow) => void;
+  onSettings: (next: Settings) => void;
   onMessage: (text: string) => void;
 };
 
@@ -77,6 +80,7 @@ export default function WorkflowCanvas({
   info,
   settings,
   onChange,
+  onSettings,
   onMessage,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -170,6 +174,7 @@ export default function WorkflowCanvas({
                       classType={data.class_type}
                       graph={graph}
                       settings={settings}
+                      onSettings={onSettings}
                       onEdit={(value) =>
                         onChange(setField(graph, id, field.name, value))
                       }
@@ -301,6 +306,7 @@ function NodeField({
   classType,
   graph,
   settings,
+  onSettings,
   onEdit,
   onOpenPrompt,
   onBind,
@@ -309,6 +315,7 @@ function NodeField({
   classType: string;
   graph: Workflow;
   settings: Settings;
+  onSettings: (next: Settings) => void;
   onEdit: (value: unknown) => void;
   onOpenPrompt: () => void;
   onBind: () => void;
@@ -360,13 +367,39 @@ function NodeField({
       </div>
     );
   }
-  if (key)
+  if (key) {
+    const item = bindingOf(key);
+    const label = item?.label ?? key;
+    const wide = key === "prompt" || key === "negative";
+    const current = bindingValue(key, settings);
     return (
       <div className="node-field node-bound">
         {head}
-        <p className="bound-value">{resolvedText(key, settings)}</p>
+        {wide ? (
+          <textarea
+            rows={3}
+            className="bound-editor"
+            aria-label={tr("自动设置 · {0}", [label])}
+            value={current}
+            onChange={(event) =>
+              onSettings(applyBinding(key, settings, event.target.value))
+            }
+          />
+        ) : (
+          <input
+            type={item?.kind === "number" ? "number" : "text"}
+            inputMode={item?.kind === "number" ? "decimal" : undefined}
+            className="bound-editor"
+            aria-label={tr("自动设置 · {0}", [label])}
+            value={current}
+            onChange={(event) =>
+              onSettings(applyBinding(key, settings, event.target.value))
+            }
+          />
+        )}
       </div>
     );
+  }
   if (field.kind === "select") {
     return (
       <label className="node-field">

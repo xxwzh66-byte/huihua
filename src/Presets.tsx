@@ -22,7 +22,6 @@ import type { Workflow } from "./api";
 export default function Presets({
   image,
   settings,
-  mode,
   workflow,
   onApply,
   request,
@@ -30,7 +29,6 @@ export default function Presets({
   image?: ViewItem;
   request?: { id: number; create?: boolean };
   settings: Settings;
-  mode: "simple" | "workflow";
   workflow: Workflow | null;
   onApply: (preset: InferencePreset) => void;
 }) {
@@ -122,7 +120,7 @@ export default function Presets({
         id: crypto.randomUUID(),
         name,
         settings,
-        mode,
+        mode: "workflow",
         workflow,
         thumbnail,
         createdAt: Date.now(),
@@ -163,7 +161,7 @@ export default function Presets({
           <span>
             <strong>
               {current &&
-              current.mode === mode &&
+              current.mode === "workflow" &&
               JSON.stringify(current.workflow) === JSON.stringify(workflow) &&
               JSON.stringify(current.settings) === JSON.stringify(settings)
                 ? current.name
@@ -200,7 +198,7 @@ export default function Presets({
               </label>
               <button
                 className="primary"
-                disabled={!libraryReady || (mode === "workflow" && !workflow)}
+                disabled={!libraryReady || !workflow}
                 onClick={() => {
                   setName("");
                   setError("");
@@ -210,7 +208,7 @@ export default function Presets({
                 <Plus size={18} /> {tr("Nouveau preset")}{" "}
               </button>
             </div>
-            {mode === "workflow" && !workflow && (
+            {!workflow && (
               <p className="hint">
                 {" "}
                 {tr("Validez le workflow API avant de l’enregistrer.")}{" "}

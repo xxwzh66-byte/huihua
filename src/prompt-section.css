@@ -1,0 +1,27 @@
+/* The Atelier prompt card. Layout and typography live in mochi.css
+   (`.studio-prompts`, `.prompt-entry`, `.prompt-shortcuts`); this file only
+   carries the bits introduced when the card left the settings panel. */
+
+.studio-prompts {
+  margin-bottom: 14px;
+}
+
+.studio-prompts .prompt-shortcuts button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-prompts .prompt-shortcuts button svg {
+  flex-shrink: 0;
+}
+
+.studio-prompts .prompt-shortcuts button:hover {
+  color: var(--accent);
+}
+
+.studio-prompts .prompt-entry:focus-visible,
+.studio-prompts .prompt-shortcuts button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

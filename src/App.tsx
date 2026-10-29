@@ -42,13 +42,10 @@ import {
   type Workflow,
 } from "./api";
 import {
-  buildWorkflow,
   defaults,
   normalizeSettings,
   parseWorkflow,
   checkWorkflow,
-  MAX_SEED,
-  seedValue,
   type Settings,
 } from "./workflow";
 import { importImage, resolveImport, type Imported } from "./metadata";
@@ -57,7 +54,7 @@ import CollapsibleCard from "./CollapsibleCard";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowShelf from "./WorkflowShelf";
 import { autoBind, resolveGraph } from "./workflowBindings";
-import SettingsPanel from "./SettingsPanel";
+import PromptSection from "./PromptSection";
 import StudioNav from "./StudioNav";
 import mochiHeader from "../assets/brand/expressions/open.webp";
 import Connections from "./Connections";
@@ -159,7 +156,8 @@ export default function App() {
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
-  const [lastSeed, setLastSeed] = useState("");
+  const [, setLastSeed] = useState("");
+
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [columns, setColumns] = useState(() => {
     const n = stored<number>("gallery-columns", 2);
@@ -174,7 +172,6 @@ export default function App() {
     [removed, setRemoved] = useState<Set<string>>(new Set());
   const [custom, setCustom] = useState<Workflow | null>(null),
     [customText, setCustomText] = useState(""),
-    [mode, setMode] = useState<"simple" | "workflow">("simple"),
     [graphView, setGraphView] = useState<"visual" | "json">("visual"),
     [imported, setImported] = useState<Imported | null>(null);
   const submitLock = useRef(false),
@@ -291,7 +288,6 @@ export default function App() {
     setImported(null);
     setCustom(null);
     setCustomText("");
-    setMode("simple");
     setProgress(0);
     setPhase(tr("Prêt à créer"));
     clearImageCache();
@@ -332,38 +328,12 @@ export default function App() {
     setNotice("");
     const version = generation.current;
     try {
-      const batchCount = mode === "workflow" ? 1 : settings.batches;
-      if (!Number.isInteger(batchCount) || batchCount < 1 || batchCount > 20)
-        throw new Error(tr("Nombre de lots : 1 à 20."));
-      const builds: { workflow: Workflow; settings?: Settings }[] = [];
-      for (let n = 0; n < batchCount; n++) {
-        if (mode === "workflow") {
-          if (!custom)
-            throw new Error(tr("Importez et validez un workflow API."));
-          // Placeholders (`{{prompt}}`, `{{sampler}}`…) are resolved here so the
-          // automatic settings drive the imported graph at submit time.
-          builds.push({ workflow: resolveGraph(custom, settings), settings });
-          continue;
-        }
-        if (!modelChoices(info).includes(settings.model))
-          throw new Error(
-            tr(
-              "Le modèle choisi n’est pas disponible sur ce serveur. Choisissez un modèle de la liste.",
-            ),
-          );
-        const s = {
-          ...settings,
-          seed: settings.seed.trim()
-            ? String(
-                (BigInt(seedValue(settings.seed)) + BigInt(n)) %
-                  (MAX_SEED + 1n),
-              )
-            : "",
-        };
-        const built = buildWorkflow(s, undefined, info);
-        s.seed = String(built.seed);
-        builds.push({ workflow: built.workflow, settings: s });
-      }
+      if (!custom) throw new Error(tr("Importez et validez un workflow API."));
+      const builds: { workflow: Workflow; settings?: Settings }[] = [
+        // Placeholders (`{{prompt}}`, `{{sampler}}`…) are resolved here so the
+        // prompt card and the placeholder editors drive the imported graph.
+        { workflow: resolveGraph(custom, settings), settings },
+      ];
       builds.forEach((b) => checkWorkflow(b.workflow, info));
       try {
         rememberPrompt(settings);
@@ -621,11 +591,10 @@ export default function App() {
     if (version !== generation.current) return;
     setSettings(normalizeSettings(parsed.settings));
     setImported(parsed);
-    setMode("simple");
-    setCustom(parsed.workflow ?? null);
-    setCustomText(
-      parsed.workflow ? JSON.stringify(parsed.workflow, null, 2) : "",
-    );
+    if (parsed.workflow) {
+      setCustom(parsed.workflow);
+      setCustomText(JSON.stringify(parsed.workflow, null, 2));
+    }
     setResults([{ ...item, url }]);
     setPreview("");
     setViewer(null);
@@ -667,7 +636,6 @@ export default function App() {
         const bound = autoBind(w);
         setCustom(bound.graph);
         setCustomText(JSON.stringify(bound.graph, null, 2));
-        setMode("workflow");
         setNotice(
           bound.bound.length
             ? tr("{0} 个参数已联动到自动设置。", [bound.bound.length])
@@ -835,12 +803,10 @@ export default function App() {
           queue={queue}
           online={online}
           info={info}
-          workflow={mode === "workflow" ? custom : null}
+          workflow={custom}
           onMessage={notify}
           onOpen={(target) => {
             setTab("create");
-            if (target === "workflow") setMode("workflow");
-            if (target === "models") setMode("simple");
             if (target === "presets")
               setPresetRequest((v) => ({ id: v.id + 1, create: false }));
           }}
@@ -888,11 +854,9 @@ export default function App() {
               request={presetRequest}
               image={results[0]}
               settings={settings}
-              mode={mode}
               workflow={custom}
               onApply={(p) => {
                 setSettings(p.settings);
-                setMode(p.mode);
                 setCustom(p.workflow);
                 setCustomText(
                   p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
@@ -933,7 +897,11 @@ export default function App() {
               {custom && (
                 <button
                   className="text-button"
-                  onClick={() => setMode("workflow")}
+                  onClick={() =>
+                    document
+                      .getElementById("studio-workflow")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
                 >
                   {" "}
                   {tr("Ouvrir le workflow API original")}{" "}
@@ -942,23 +910,12 @@ export default function App() {
               )}
             </CollapsibleCard>
           )}
-          {mode === "simple" ? (
-            <div className="settings-grid studio-settings">
-              <SettingsPanel
-                settings={settings}
-                onChange={setSettings}
-                info={info}
-                lastSeed={lastSeed}
-                onGlossary={() => setTab("glossary")}
-                key={epoch}
-              />
-            </div>
-          ) : (
+          <div id="studio-workflow">
             <CollapsibleCard title={tr("Workflow API")}>
               <p className="muted">
                 {" "}
                 {tr(
-                  "导入 ComfyUI 的 API 工作流后可以直接改参数。用占位符（如 {{sampler}}、{{prompt}}）把字段交给自动模式，生成时会自动填入。",
+                  "导入 ComfyUI 的 API 工作流后可以直接改参数。用占位符（如 {{sampler}}、{{prompt}}）把字段交给工坊设置，生成时会自动填入。",
                 )}{" "}
               </p>
               <div className="workflow-toolbar">
@@ -993,7 +950,6 @@ export default function App() {
                 onLoad={(next, name) => {
                   setCustom(next);
                   setCustomText(JSON.stringify(next, null, 2));
-                  setMode("workflow");
                   setNotice(tr("已载入「{0}」。", [name]));
                 }}
                 onMessage={notify}
@@ -1008,6 +964,7 @@ export default function App() {
                     setCustom(next);
                     setCustomText(JSON.stringify(next, null, 2));
                   }}
+                  onSettings={setSettings}
                   onMessage={(text) => notify(text)}
                 />
               ) : (
@@ -1067,7 +1024,13 @@ export default function App() {
                 </>
               )}
             </CollapsibleCard>
-          )}
+          </div>
+          <PromptSection
+            settings={settings}
+            onChange={setSettings}
+            onGlossary={() => setTab("glossary")}
+            onGenerate={() => setTab("prompt")}
+          />
           <div className="studio-imports">
             <label className="file-picker">
               <Upload size={18} /> {tr("Paramètres depuis une image")}{" "}
@@ -1086,21 +1049,6 @@ export default function App() {
                 }}
               />
             </label>
-            <div className="segmented">
-              <button
-                aria-pressed={mode === "simple"}
-                onClick={() => setMode("simple")}
-              >
-                {" "}
-                {tr("Automatique")}{" "}
-              </button>
-              <button
-                aria-pressed={mode === "workflow"}
-                onClick={() => setMode("workflow")}
-              >
-                Workflow API
-              </button>
-            </div>
             <button
               className="save-preset-shortcut"
               onClick={() =>
@@ -1255,11 +1203,9 @@ export default function App() {
             <div className="generate-bar">
               <div>
                 <strong>
-                  {mode === "simple"
-                    ? tr("{0} image(s)", [
-                        settings.batch * settings.batches || 0,
-                      ])
-                    : tr("Workflow personnalisé")}
+                  {custom
+                    ? tr("Workflow personnalisé")
+                    : tr("Importez un workflow API")}
                 </strong>
                 <small>
                   {deviceName} · {queue.queue_pending.length}{" "}
@@ -1465,7 +1411,7 @@ export default function App() {
       {tab === "create" && server && quickMenu && (
         <StudioNav
           active
-          workflow={mode === "workflow"}
+          workflow={Boolean(custom)}
           leftHanded={leftHanded}
           generating={busy || !online || jobs.length > 0}
           onGenerate={() => {

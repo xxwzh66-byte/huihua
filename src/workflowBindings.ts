@@ -15,41 +15,110 @@ export type Binding = {
   label: string;
   kind: BindingKind;
   value: (settings: Settings) => string | number;
+  /** Write a value edited in the canvas back into the automatic settings. */
+  apply?: (settings: Settings, raw: string) => Settings;
 };
 
-const text = (key: string, label: string, value: (s: Settings) => string): Binding => ({
+const asNumber = (raw: string, fallback: number) => {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const text = (
+  key: string,
+  label: string,
+  value: (s: Settings) => string,
+  apply?: (s: Settings, raw: string) => Settings,
+): Binding => ({
   key,
   label,
   kind: "text",
   value,
+  apply,
 });
-const num = (key: string, label: string, value: (s: Settings) => number): Binding => ({
+const num = (
+  key: string,
+  label: string,
+  value: (s: Settings) => number,
+  apply?: (s: Settings, raw: string) => Settings,
+): Binding => ({
   key,
   label,
   kind: "number",
   value,
+  apply,
 });
 
 export const BINDINGS: Binding[] = [
-  text("prompt", "正向提示词", (s) => s.positive),
-  text("negative", "负向提示词", (s) => s.negative),
-  text("model", "模型文件", (s) => s.model),
-  text("vae", "VAE 文件", (s) => s.vae),
-  num("steps", "步数", (s) => s.steps),
-  num("cfg", "CFG", (s) => s.cfg),
-  num("width", "宽度", (s) => s.width),
-  num("height", "高度", (s) => s.height),
-  num("seed", "随机种子", (s) => Number(s.seed.trim() || 0)),
-  num("batch", "单批数量", (s) => s.batch),
-  num("clip_skip", "CLIP 跳过层", (s) => s.clipSkip),
-  text("sampler", "采样器", (s) => s.sampler),
-  text("scheduler", "调度器", (s) => s.scheduler),
+  text("prompt", "正向提示词", (s) => s.positive, (s, raw) => ({ ...s, positive: raw })),
+  text(
+    "negative",
+    "负向提示词",
+    (s) => s.negative,
+    (s, raw) => ({ ...s, negative: raw }),
+  ),
+  text("model", "模型文件", (s) => s.model, (s, raw) => ({ ...s, model: raw.trim() })),
+  text("vae", "VAE 文件", (s) => s.vae, (s, raw) => ({ ...s, vae: raw.trim() })),
+  num("steps", "步数", (s) => s.steps, (s, raw) => ({
+    ...s,
+    steps: asNumber(raw, s.steps),
+  })),
+  num("cfg", "CFG", (s) => s.cfg, (s, raw) => ({ ...s, cfg: asNumber(raw, s.cfg) })),
+  num("width", "宽度", (s) => s.width, (s, raw) => ({
+    ...s,
+    width: asNumber(raw, s.width),
+  })),
+  num("height", "高度", (s) => s.height, (s, raw) => ({
+    ...s,
+    height: asNumber(raw, s.height),
+  })),
+  num("seed", "随机种子", (s) => Number(s.seed.trim() || 0), (s, raw) => ({
+    ...s,
+    seed: raw.trim(),
+  })),
+  num("batch", "单批数量", (s) => s.batch, (s, raw) => ({
+    ...s,
+    batch: asNumber(raw, s.batch),
+  })),
+  num("clip_skip", "CLIP 跳过层", (s) => s.clipSkip, (s, raw) => ({
+    ...s,
+    clipSkip: asNumber(raw, s.clipSkip),
+  })),
+  text("sampler", "采样器", (s) => s.sampler, (s, raw) => ({
+    ...s,
+    sampler: raw.trim(),
+  })),
+  text("scheduler", "调度器", (s) => s.scheduler, (s, raw) => ({
+    ...s,
+    scheduler: raw.trim(),
+  })),
 ];
 
 export const BINDING_KEYS = BINDINGS.map((b) => b.key);
 
 export function bindingOf(key: string): Binding | undefined {
   return BINDINGS.find((b) => b.key === key);
+}
+
+/** Current raw value of a placeholder, as an editable string. */
+export function bindingValue(key: string, settings: Settings): string {
+  const binding = bindingOf(key);
+  if (!binding) return "";
+  return String(binding.value(settings));
+}
+
+/** Write an edited placeholder value back into the settings object. */
+export function applyBinding(
+  key: string,
+  settings: Settings,
+  raw: string,
+): Settings {
+  const binding = bindingOf(key);
+  if (!binding) return settings;
+  if (binding.apply) return binding.apply(settings, raw);
+  return binding.kind === "number"
+    ? (settings as Settings)
+    : settings;
 }
 
 export function token(key: string) {
