@@ -6,7 +6,7 @@ const VERSION = "1.1.3";
 const TAG = `v${VERSION}`;
 const APK = `D:/demo/Paint-v1/dist-apk/huihua-${VERSION}-arm64.apk`;
 const NOTES = "D:/demo/Paint-v1/_build/release-1.1.3.md";
-const HASH = "6dace6ed56269dcae5b054b0445bfe9a7ea063bdf6499943340fe27ff5900c33";
+const HASH = "eaf5bfb94a0bbf86c6253b53e215d73cf31a8441ebb1d4d50288bbfed6c22641";
 
 function token() {
   const out = execSync("git credential fill", {

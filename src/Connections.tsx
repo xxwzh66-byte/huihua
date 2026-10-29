@@ -39,7 +39,7 @@ type Props = {
   online: boolean;
   info: ObjectInfo | null;
   workflow: Graph | null;
-  onOpen: (target: "models" | "workflow" | "presets") => void;
+  onOpen: (target: "workflow" | "presets") => void;
   onMessage: (text: string) => void;
 };
 
@@ -265,14 +265,6 @@ export default function Connections({
                 onChange={(e) => onHandedness(e.target.checked)}
               />
             </label>
-            <button disabled={!server} onClick={() => onOpen("models")}>
-              <Layers />
-              <span>
-                <strong>{tr("Modèles, LoRAs & upscalers")}</strong>
-                <small>{tr("Retrouver les ressources de votre serveur")}</small>
-              </span>
-              <ChevronRight />
-            </button>
             <button disabled={!server} onClick={() => onOpen("workflow")}>
               <Workflow />
               <span>

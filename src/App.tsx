@@ -809,6 +809,12 @@ export default function App() {
             setTab("create");
             if (target === "presets")
               setPresetRequest((v) => ({ id: v.id + 1, create: false }));
+            if (target === "workflow")
+              requestAnimationFrame(() =>
+                document
+                  .getElementById("studio-workflow")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+              );
           }}
         />
       )}

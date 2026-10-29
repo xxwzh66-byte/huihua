@@ -1,4 +1,4 @@
-# 绘画 1.1.2
+# 绘画 1.1.3
 
 绘画（huihua）是一个 ComfyUI 的 Android 客户端：在手机上写提示词、调参数、看实时进度，把出图的算力留给你的 ComfyUI 服务器。
 
@@ -13,7 +13,7 @@
 - **注入模板可查看可改**：每次请求真正发给 API 的 system 指令可以展开查看、就地修改、保存到本机，编辑区实时预览 `system:` 与 `user:` 两段实际内容。
 - **skill 模板**：把带 `SKILL.md` + `data/*.csv` 的 skill 文件夹拖进设置页，CSV 的第一列自动变成可选参数，模板会被注入到生成提示词的系统提示里。
 - **可视化工作流**：导入 ComfyUI 的 API 格式 JSON，用一张从上到下的紧凑流水线卡片看节点，参数字段直接改；保存到本机的工作流库随时再载入。
-- **占位符联动**：模型 / 提示词 / 尺寸 / 采样器 / 种子等参数可以换成 `{{prompt}}`、`{{sampler}}` 这样的占位符，生成时自动用「自动设置」里的值替换，也可以一键把工作流的真实值反向同步回自动设置。
+- **占位符联动**：模型 / 提示词 / 尺寸 / 采样器 / 种子等参数可以换成 `{{prompt}}`、`{{sampler}}` 这样的占位符，生成时自动用工坊设置里的值替换。被绑定的字段在可视化视图里可以直接编辑，改完立刻回写到工坊。
 - **服务器资源**：连上服务器后直接读出可用的模型、文本编码器、VAE 与 LoRA，并标出当前工作流正在用的那一个。
 - **术语表**：离线 Danbooru 标签分类，中英对照，可按分类浏览与搜索。
 - **作品集**：从服务器历史读取输出图，支持收藏、批量下载到本机、放大查看、复用参数。
@@ -27,18 +27,26 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
+| 1.1.3 | arm64-v8a | 73.6 MB | [huihua-1.1.3-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.3/huihua-1.1.3-arm64.apk) |
 | 1.1.2 | arm64-v8a | 73.6 MB | [huihua-1.1.2-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.2/huihua-1.1.2-arm64.apk) |
 | 1.1.1 | arm64-v8a | 73.6 MB | [huihua-1.1.1-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.1/huihua-1.1.1-arm64.apk) |
 | 1.1.0 | arm64-v8a | 73.6 MB | [huihua-1.1.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.0/huihua-1.1.0-arm64.apk) |
 | 1.0.0 | arm64-v8a | 71.0 MB | [huihua-1.0.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.0.0/huihua-1.0.0-arm64.apk) |
 
 ```bash
-adb install huihua-1.1.2-arm64.apk
+adb install huihua-1.1.3-arm64.apk
 ```
 
-安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 使用同一签名证书，可以直接覆盖升级。
+安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 / 1.1.3 使用同一签名证书，可以直接覆盖升级。
 
 ## 更新内容
+
+### 1.1.3
+
+- 工坊只保留三块：API 工作流、文字成就图像、实时预览，从上到下一路走完。
+- 删除自动模式：不再有「自动 / Workflow API」切换，也不再维护两套参数；生成一律走导入的工作流。
+- 可视化视图里被占位符绑定的字段改成可编辑输入框，改「正向提示词」就等于改工坊里的提示词，同一份数据。
+- 设置面板里的自动参数整块移除，预设只记录工作流。
 
 ### 1.1.2
 
