@@ -9,6 +9,7 @@ import {
 import { api, imagePath, imageUrl, native, type Queue, type History } from "./api";
 import { getClientId, writeStored } from "./sessionStorage";
 import { mapConcurrent, pollingDelay } from "./asyncPool";
+import { openComfySocket, percentOf } from "./comfySocket";
 import type { ViewItem } from "./viewTypes";
 
 export const clientId = getClientId();
@@ -67,6 +68,10 @@ export function useGenerationSession(
   onlineRef.current = onOnline;
   errorRef.current = onError;
   const wakeRef = useRef<() => void>(() => {});
+  const previewUrl = useRef("");
+  // True while the socket is pushing real preview frames; the polling fallback
+  // must not overwrite them with its 1.5 s snapshot.
+  const socketPreview = useRef(false);
   const track = useCallback((ids: string[], url: string) => {
     const start = !jobsRef.current.length && ids.length > 0;
     jobsRef.current = ids;
@@ -74,6 +79,37 @@ export function useGenerationSession(
     if (url) writeStored("tasks:" + url, ids);
     if (start) wakeRef.current();
   }, []);
+  /**
+   * v1.16: real progress and real preview frames come from ComfyUI's `/ws`
+   * channel instead of being inferred from history polling. The polling loop
+   * stays as the source of truth for *what exists* on the server (it survives
+   * reconnects and reloads), while the socket only animates the render bar.
+   */
+  useEffect(() => {
+    if (!server) return;
+    const swapPreview = (blob: Blob) => {
+      const next = URL.createObjectURL(blob);
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+      previewUrl.current = next;
+      socketPreview.current = true;
+      setPreview(next);
+    };
+    const socket = openComfySocket(server, clientId, {
+      onProgress: (report) => setProgress(percentOf(report.value, report.max)),
+      onStart: () => setProgress(0),
+      onNode: (node) => setPhase(tr("Nœud {0}", [node])),
+      onPreview: swapPreview,
+      onError: (message) => errorRef.current(message),
+    });
+    return () => {
+      socket.close();
+      if (previewUrl.current) {
+        URL.revokeObjectURL(previewUrl.current);
+        previewUrl.current = "";
+      }
+      socketPreview.current = false;
+    };
+  }, [server, epoch]);
   useEffect(() => {
     if (!server) return;
     let stopped = false,
@@ -159,7 +195,7 @@ export function useGenerationSession(
             }
           } else missing.current.delete(id);
         }
-        if (live) setPreview(live);
+        if (live && !socketPreview.current) setPreview(live);
         if (done.size) {
           const remaining = jobsRef.current.filter((id) => !done.has(id));
           track(remaining, server);
@@ -175,6 +211,11 @@ export function useGenerationSession(
           for (const item of fresh) savedImages.current.add(item.path);
           if (fresh.length && autoSave?.current) void persist(fresh);
           setPreview("");
+          socketPreview.current = false;
+          if (previewUrl.current) {
+            URL.revokeObjectURL(previewUrl.current);
+            previewUrl.current = "";
+          }
           setProgress(remaining.length ? 0 : failed ? 0 : 100);
           setPhase(
             remaining.length
@@ -220,6 +261,11 @@ export function useGenerationSession(
     cursor.current = 0;
     missing.current.clear();
     savedImages.current.clear();
+    socketPreview.current = false;
+    if (previewUrl.current) {
+      URL.revokeObjectURL(previewUrl.current);
+      previewUrl.current = "";
+    }
     track([], "");
     setQueue({ queue_running: [], queue_pending: [] });
     setResults([]);

@@ -1,8 +1,15 @@
 import { t as tr } from "./i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Heart, Trash2, Download, SlidersHorizontal } from "lucide-react";
+import {
+  Heart,
+  Trash2,
+  Download,
+  SlidersHorizontal,
+  FileText,
+} from "lucide-react";
 import { imageUrl, native } from "./api";
 import { Modal } from "./Modal";
+import ImageDetails from "./ImageDetails";
 import type { ViewItem } from "./viewTypes";
 type Point = { x: number; y: number };
 type Pose = Point & { scale: number };
@@ -38,6 +45,7 @@ export default function Viewer({
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [pose, setPose] = useState<Pose>(origin),
+    [details, setDetails] = useState(false),
     [drag, setDrag] = useState<Point>({ x: 0, y: 0 });
   const stage = useRef<HTMLDivElement>(null),
     rail = useRef<HTMLDivElement>(null),
@@ -292,6 +300,7 @@ export default function Viewer({
   });
   if (!item) return null;
   return (
+    <>
     <Modal title={tr("Votre image")} onClose={onClose} className="photo-viewer">
       <div
         className="viewer-stage"
@@ -532,6 +541,13 @@ export default function Viewer({
           <Download />
         </button>
         <button
+          aria-label={tr("Voir le prompt détaillé")}
+          disabled={busy || !url}
+          onClick={() => setDetails(true)}
+        >
+          <FileText />
+        </button>
+        <button
           aria-label={tr("Réutiliser les paramètres")}
           disabled={busy || !url}
           onClick={() => void run(() => onReuse(item, url))}
@@ -550,5 +566,13 @@ export default function Viewer({
         {busy ? tr("Traitement…") : message}
       </p>
     </Modal>
+    {details && (
+      <ImageDetails
+        url={url}
+        name={item.name}
+        onClose={() => setDetails(false)}
+      />
+    )}
+    </>
   );
 }

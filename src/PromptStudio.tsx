@@ -64,9 +64,11 @@ function writeHistory(entries: Entry[]) {
 export default function PromptStudio({
   onInsert,
   onOpenSettings,
+  draft,
 }: {
   onInsert: (text: string, side: "positive" | "negative") => void;
   onOpenSettings: () => void;
+  draft?: { text: string; id: number } | null;
 }) {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
@@ -110,6 +112,14 @@ export default function PromptStudio({
       alive = false;
     };
   }, []);
+
+  // v1.16: the wardrobe can hand its selection to this box as a scene draft.
+  useEffect(() => {
+    if (!draft || !draft.text) return;
+    setInput(draft.text);
+    setOutput("");
+    setNotice(t("素材已作为画面描述填入。"));
+  }, [draft]);
 
   const template = templates.find((item) => item.id === templateId) ?? null;
   const ready = llmReady(config);

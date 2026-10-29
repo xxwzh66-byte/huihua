@@ -50,7 +50,7 @@ import {
   type Settings,
 } from "./workflow";
 import { importImage, resolveImport, type Imported } from "./metadata";
-import { Picture, clearImageCache, type ViewItem } from "./components";
+import { Picture, clearImageCache, clearThumbnailCache, type ViewItem } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowShelf from "./WorkflowShelf";
@@ -200,6 +200,12 @@ export default function App() {
     autoSaveRef,
   );
   const [glossaryVisited, setGlossaryVisited] = useState(false);
+  // v1.16: wardrobe → prompt page handoff. Bumping the id re-fires the effect
+  // even when the same sets are sent twice.
+  const [describeDraft, setDescribeDraft] = useState<{
+    text: string;
+    id: number;
+  } | null>(null);
   useEffect(() => {
     if (tab === "glossary") setGlossaryVisited(true);
   }, [tab]);
@@ -287,6 +293,7 @@ export default function App() {
     setProgress(0);
     setPhase(tr("Prêt à créer"));
     clearImageCache();
+    clearThumbnailCache();
   }
   async function connect(url: string) {
     if (submitLock.current) return;
@@ -757,7 +764,15 @@ export default function App() {
             />
           }
         >
-          <Glossary onNotice={notify} onAdd={addTags} />
+          <Glossary
+            onNotice={notify}
+            onAdd={addTags}
+            onDescribe={(text) => {
+              setDescribeDraft({ text, id: Date.now() });
+              setTab("prompt");
+              setNotice(tr("素材已发送到画面描述。"));
+            }}
+          />
         </Suspense>
       )}
       {tab === "prompt" && (
@@ -772,6 +787,7 @@ export default function App() {
           <PromptStudio
             onInsert={insertPrompt}
             onOpenSettings={() => setTab("connect")}
+            draft={describeDraft}
           />
         </Suspense>
       )}

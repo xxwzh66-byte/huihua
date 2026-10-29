@@ -11,6 +11,7 @@ import {
   Sparkles,
   Shirt,
   Mountain,
+  Send,
 } from "lucide-react";
 import { normalizeSearch } from "./taxonomy";
 import wardrobe from "./data/wardrobe.json";
@@ -42,15 +43,19 @@ type Hit = { label: string; tags: string[]; context: string };
 function Wardrobe({
   onAdd,
   onNotice,
+  onDescribe,
 }: {
   onAdd: (tags: string[], side: "positive" | "negative") => void;
   onNotice: (message: string) => void;
+  onDescribe?: (text: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [section, setSection] = useState("clothing");
   const [group, setGroup] = useState("");
   const [limit, setLimit] = useState(40);
   const [selected, setSelected] = useState<string[]>([]);
+  // v1.16: the picked items themselves, so a scene description can be built.
+  const [chosen, setChosen] = useState<Hit[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
 
@@ -110,12 +115,19 @@ function Wardrobe({
     [],
   );
 
-  const toggle = (tags: string[]) =>
+  const toggle = (hit: Hit) =>
     setSelected((old) => {
-      const on = tags.every((tag) => old.includes(tag));
+      const on = hit.tags.every((tag) => old.includes(tag));
+      setChosen((picked) =>
+        on
+          ? picked.filter((item) => item.tags.join("|") !== hit.tags.join("|"))
+          : picked.some((item) => item.tags.join("|") === hit.tags.join("|"))
+            ? picked
+            : [...picked, hit],
+      );
       return on
-        ? old.filter((tag) => !tags.includes(tag))
-        : [...old, ...tags.filter((tag) => !old.includes(tag))];
+        ? old.filter((tag) => !hit.tags.includes(tag))
+        : [...old, ...hit.tags.filter((tag) => !old.includes(tag))];
     });
 
   const add = (side: "positive" | "negative") => {
@@ -127,6 +139,22 @@ function Wardrobe({
       ]),
     );
     setSelected([]);
+    setChosen([]);
+  };
+
+  /**
+   * Turns the picked sets into one readable scene line: "卧室, 晚礼服, 诱惑姿态…"
+   * so the prompt page has something to expand instead of a bare tag list.
+   */
+  const describe = () => {
+    const labels = chosen
+      .map((hit) => display(hit.label).trim())
+      .filter(Boolean);
+    const text = [...new Set(labels)].join("，");
+    setSelected([]);
+    setChosen([]);
+    if (!text) return;
+    onDescribe?.(text);
   };
 
   return (
@@ -224,7 +252,7 @@ function Wardrobe({
               key={hit.tags.join("|")}
               className={`glossary-tag ${on ? "selected" : ""}`}
               aria-pressed={on}
-              onClick={() => toggle(hit.tags)}
+              onClick={() => toggle(hit)}
             >
               <span>
                 <strong>{display(hit.label)}</strong>
@@ -271,9 +299,12 @@ function Wardrobe({
             {selected.map((tag) => (
               <button
                 key={tag}
-                onClick={() =>
-                  setSelected((old) => old.filter((t) => t !== tag))
-                }
+                onClick={() => {
+                  setSelected((old) => old.filter((t) => t !== tag));
+                  setChosen((picked) =>
+                    picked.filter((item) => !item.tags.includes(tag)),
+                  );
+                }}
                 aria-label={tr("Retirer {0} de la sélection", [tag])}
               >
                 {display(tag)} <X size={13} />
@@ -288,6 +319,13 @@ function Wardrobe({
               <Plus size={16} /> {tr("Positif")}
             </button>
           </div>
+          {onDescribe && (
+            <div>
+              <button className="describe-send" onClick={describe}>
+                <Send size={16} /> {tr("Send to the scene description")}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

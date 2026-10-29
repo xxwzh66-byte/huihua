@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.15.0**（versionCode `11500`），HEAD `d84ca2c`，分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.16.0**（versionCode `11600`），HEAD `d84ca2c`，分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -120,7 +120,11 @@ results / preview → #studio-render
 | `workflowLibrary.ts`（97 行） | 库的存储层，key `workflow-library-v1`，上限 60 |
 | `PromptSection.tsx`（约 80 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor`；「打开素材库」按钮 |
 | `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
-| `Glossary.tsx`（约 250 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json` |
+| `Glossary.tsx`（约 290 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json`。v1.16 加 `onDescribe`：选中整套后可「发送到画面描述」 |
+| `ImageDetails.tsx`（约 180 行） | **v1.16 新增**：读图片的 `comfy_pocket` 元数据，列出正/负提示词与全部参数，两段各带复制。由 `Viewer.tsx` 的第五个动作按钮打开 |
+| `imageBytes.ts` | `dataUrlBytes(url)`：base64 data URL → `Uint8Array` |
+| `thumbnails.ts` | **v1.16 新增**：`createImageBitmap` + `OffscreenCanvas` 把网格图缩到长边 256（webp q=0.72），独立 8 MB 缓存 |
+| `comfySocket.ts`（约 210 行） | **v1.16 新增**：直连 ComfyUI `/ws?clientId=`，解析实时进度、执行节点与二进制预览帧，断线指数退避重连 |
 | `PromptStudio.tsx`（459 行） | 独立「提示词」页 |
 | `InstructionEditor.tsx`（174 行） | 「注入模板可查看可修改」实体 |
 | `promptTemplates.ts`（271 行） | 模板 CRUD + skill 文件夹导入 + `defaultSystem()` |
@@ -352,7 +356,7 @@ node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 �
 
 `vitest.config.ts`：`include: ["src/**/*.test.ts"]`，`setupFiles: ["src/testLocale.ts"]`（把 locale 钉在 `fr`，所以断言里是法语串）。
 
-现有 12 个测试文件 / **55 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience`。
+现有 14 个测试文件 / **68 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）。
 
 **没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptTemplates`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
 
@@ -363,6 +367,8 @@ node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 �
 **v1.14 新增并通过的**：`tests/v114.spec.ts`（4 用例）+ `tests/v114-harness.tsx`（内联 7 节点 fixture，KSampler 的 `sampler_name`/`scheduler` 故意留空）。覆盖：图标节点与 9 条连线、未选中时无参数面板、点节点才展开 6 个可编辑字段 + 4 条 `.node-link`、空 select 的占位 option、缩放按钮、工作流命名保存与覆盖保存。
 
 **v1.15 新增并通过的**：`tests/v115.spec.ts`（4 用例）。覆盖：新装直落工坊且无引导步骤、导航第五项文案、素材库四货架 + 搜索 + 选中写进提示词、编辑器只剩文本/区块/翻译/权重（无语音入口、无补全开关、无联想气泡）、导入工作流不改原字段。
+
+**v1.16 新增并通过的**：`tests/v116.spec.ts`（2 用例）。覆盖：素材库选中整套 → 点「发送到画面描述」→ 落到提示词页的画面描述框；图库打开看图 → 「查看详细提示词」→ 弹层列出正/负提示词、模型、LoRA。**e2e 里的假 PNG 必须自己算 CRC32 并带 `IHDR`+`IDAT`**，只塞 `tEXt` 的图会让 `createImageBitmap` 解码失败，缩略图永远停在「加载中」、`.image-button` 不渲染。
 
 **仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
 
@@ -501,6 +507,24 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 ---
 
+## 9.7 v1.16 变更清单（本轮迭代）
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 缩略图真缩 | 新增 `src/thumbnails.ts`；`Picture.tsx`、`components.tsx`、`App.tsx` `resetSession()`；新增 `src/thumbnails.test.ts` | 原来拼 `?thumb=1`，ComfyUI 不认这个参数、照样回原图，24 MB LRU 两三张就满。现在 `createImageBitmap` + `OffscreenCanvas` 在本地缩到长边 256（webp q=0.72），独立 8 MB 缓存。`fitSize`/`shrink`/`thumbnailImage`/`clearThumbnailCache` |
+| 2 | 实时进度（WebSocket） | 新增 `src/comfySocket.ts`；`useGenerationSession.ts` 加独立 effect；`tauri.conf.json` CSP `connect-src` 加 `ws: wss:`；新增 `src/comfySocket.test.ts` | 之前进度是假的（`setProgress` 只在 0/100 两处调用），预览靠轮询 `/api/history` 里的 temp 图。现在直连 `/ws?clientId=`，解析 `progress`/`progress_state`/`executing`/`execution_start`/`execution_error`，二进制帧取 `PREVIEW_EVENT=1` 的预览（8 字节头 + PNG/JPEG/WEBP）。socket 有真帧时轮询不许覆盖（`socketPreview` ref）。重连退避 1s→15s |
+| 3 | 素材库发送到画面描述 | `Glossary.tsx` 加 `onDescribe` + `chosen` state + `describe()`；`App.tsx` `describeDraft`；`PromptStudio.tsx` `draft` prop | 选中整套后多一个「发送到画面描述」按钮，把条目的中文 label 用「，」拼成一句话，跳到提示词页填进「画面描述」框。`id: Date.now()` 保证同样内容连发两次也能触发 |
+| 4 | 看图可查详细提示词 | 新增 `src/ImageDetails.tsx`、`src/imageBytes.ts`；`Viewer.tsx` 加第五个动作按钮 | 按钮在每个图的查看器里，读 PNG 的 `comfy_pocket` tEXt chunk，列出正/负提示词 + 模型/尺寸/步数/CFG/采样器/调度器/种子/LoRA/VAE/来源，两段提示词各带一键复制。**注意 Viewer 的 return 改成 fragment**：`<dialog>` 不能可靠地嵌套 `showModal()`，弹层必须挂在 Viewer 的 Modal 旁边而不是里面 |
+| 5 | 版本 + i18n | `_build/bump-1.16.0.mjs` / `_build/add-v116-strings.mjs` | 1.16.0 / versionCode `11600`；locale 968 → **983** 键 |
+
+**顺手修的 i18n/样式**：`.glossary-selection .describe-send`（选中条第三个按钮）；`.image-details` 整套（弹层 `min(560px, 100%-24px)`、`.detail-text` `max-height:32vh`、`.detail-rows` 用 1px gap 做分隔线）。
+
+**回归用例**：`tests/v116.spec.ts`（2 个，全绿）覆盖「素材库选中 → 发到画面描述 → 提示词页收到」「图库打开看图 → 详细提示词弹层显示银色头发/模型/LoRA」。e2e 里生成 PNG 必须自己算 CRC32 且带 `IHDR`+`IDAT`，只塞 `tEXt` 的假 PNG 会让 `createImageBitmap` 解码失败、缩略图永远停在「加载中」、`.image-button` 不渲染。
+
+**还没在真机验证的**：CSP 加了 `ws:` 只在重新构建 APK 后生效，真 ComfyUI 上的 ws 进度与预览也还没实测。
+
+---
+
 ## 10. 已知的坑（都踩过）
 
 ### 10.1 控制台编码
@@ -536,24 +560,49 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 ---
 
-## 11. 现在缺什么（按优先级）
+## 11. 现在缺什么（v1.16 之后重核，按优先级）
 
-### P0 — 功能上真的缺
+> 这一节在 v1.15 发版后重新逐条核对过代码，不是沿用旧结论。标注「✅已核实」的都跑过 grep / 读过实现；标注「✅ v1.16 已做」的是本轮补掉的。
 
-1. **进度是假的**。`src/useGenerationSession.ts:141` 只有 `setProgress(remaining.length ? 0 : failed ? 0 : 100)`，全程只有 0 和 100。`src` 里 `WebSocket` / `/ws` 出现 **0 次**。
-   → 解法：订阅 ComfyUI `/ws` 的 `progress` / `executing` / `preview` 事件。地址是 `ws(s)://<server>/ws?clientId=<clientId>`，但 `transport.rs` 目前只放行 `/api/` 且只做 JSON，**WebSocket 得新写 Rust 侧**（或让前端直连——受 CSP `connect-src` 限制，需要同时改 `tauri.conf.json`）。
-2. **无鉴权、不能上传图**。`ServerConfig` 只有 `url` 一个字段；`transport.rs` 的 `request()` 不发自定义 header；`request_url()` 只放行 `/api/` 且只做 JSON body。
-   → 后果：连不上需要 token 的 ComfyUI 反代；做不了 img2img / ControlNet（要 multipart 上传到 `/api/upload/image`）。
-   → 解法：`ServerConfig` 加 `token: Option<String>`；`request()` 加 `Authorization`/自定义 header；新增 `upload_image` 命令走 multipart。
+### P0 — 真正卡住体验的三条
 
-### P1 — 质量
+1. ~~**进度是假的，也没有实时预览**~~ ✅ **v1.16 已做**
+   - 现在 `src/comfySocket.ts` 直连 `/ws?clientId=`，`progress` → 真实百分比、`executing` → 「节点 N」、二进制 `PREVIEW_EVENT=1` 帧 → 预览图（`socketPreview` ref 保证不被轮询快照覆盖）。CSP 已加 `ws: wss:`。
+   - 剩下要做的：真机上实测 ws 是否能连（Android WebView 明文 ws 到局域网 IP），以及重新构建 APK 才会带上新 CSP。Rust 侧 `tokio-tungstenite` 的 B 方案作为 A 失败时的备选，代码还没写。
 
-3. **缩略图是假的**。`src/Picture.tsx:26` 给路径加 `?thumb=1`，但 ComfyUI `/api/view` 不认这个参数，返回的还是原图。图库几十张图会吃满内存。真解法是本地生成缩略图（Android 侧 `BitmapFactory` + `inSampleSize`，或前端 `createImageBitmap` + canvas 缩到 256px）。
-4. **AI 提示词入口只剩一个**。v1.15 删掉 `PromptAssistant.tsx`（语音助手弹层）后，只有 `PromptStudio.tsx`（459 行，独立「提示词」页）走 LLM。补齐方向：让工坊的「用 API 生成提示词」按钮直接跳过去（现在已经是 `onGenerate → setTab("prompt")`）。
-5. **`autoBind` 靠 class_type 正则猜，很脆**。不认识 `CLIPTextEncodeSDXL`（双 `text_g`/`text_l`）、`T5TextEncode`、`FluxGuidance`、`ConditioningCombine`；`positiveDone` 只写第一个正向 encode，多正向节点的工作流会漏。
-   → 方向：改走「沿 KSampler 的 `positive`/`negative` link 反向遍历」确定真正的条件节点，而不是靠类名。
-6. **删除只是隐藏**。`App.tsx:172` 的 `removed` 是 localStorage Set，图片还在服务器上。UI 上写的是「récupérable」，但没有任何真删接口（ComfyUI 也没有标准删图 API，得自己加）。
-7. **e2e 全过期 + 无 CI**。见 7.2。补 CI（`tsc -b` + `vitest` + `vite build` 三件套就够拦大部分回归）比修那 38 处 bridge 引用更值。
+2. **无鉴权、不能上传图片** ✅已核实
+   - `src-tauri/src/lib.rs` 的 `struct ServerConfig { url: Option<String> }` —— 只有一个字段。
+   - `src-tauri/src/transport.rs` 全文 grep `header|token|Authorization` **零命中**；`request()` 只有两个分支：`client.post(url).json(&value)` 和 `client.get(url)`。没有 multipart、没有自定义 header。
+   - `request_url()` 硬约束：`path` 必须以 `/api/` 开头，且不能含 `\` 或 `#`。
+   - 后果：连不上套了 token 的 ComfyUI 反代；做不了 img2img / inpaint / ControlNet —— 而 v1.15 刚上线的素材库里有大量「姿势」「场景」数据，配不上图生图等于只能文生图。
+   - 解法分三步，可以分开发：
+     - a) `ServerConfig` 加 `token: Option<String>` + 设置页多一个输入框；`request()` 在有 token 时挂 `Authorization: Bearer`。
+     - b) 新增 `upload_image(app, data_url, filename)` 命令，POST `/api/upload/image` multipart（`reqwest` 要开 `multipart` feature，现在只开了 `rustls-tls, json`）。
+     - c) 工坊加「参考图」区：选图 → 上传 → 把返回的 `name` 塞进工作流对应的 `LoadImage.image` 字段。
+
+3. ~~**缩略图是假的，图库会吃内存**~~ ✅ **v1.16 已做**
+   - `src/thumbnails.ts`：`createImageBitmap` + `OffscreenCanvas` 在本地缩到长边 256（webp q=0.72），独立 8 MB 缓存；`Picture.tsx` 的 `<Picture small>` 走它，Viewer 仍用原图缓存。
+   - 原问题：`Picture.tsx` 拼 `?thumb=1`，ComfyUI `/api/view` 不认这个参数、返回原图；`imageCache.ts` 的 LRU 只有 24 MB，两三张原图就顶满。
+
+### P1 — 质量债
+
+4. **`batches` 是死字段** ✅已核实
+   - `src/workflow.ts:10` 有 `batch: number; batches: number`，`buildWorkflow` 里也校验 `batches 1-20`。
+   - 但 `src/App.tsx:338` 的 `builds` 数组**永远只有一项**，`for (const b of builds)` 循环只跑一次；`batch_size` 只能靠 `{{batch}}` 占位符碰到。
+   - 方向二选一：要么在 UI 上接出来（多批次 = 循环 N 次发同一个 prompt，用不同 seed），要么把这字段删掉。**别留着让人以为能用。**
+
+5. **`autoBind` 靠 class_type 正则猜，很脆**
+   - `src/workflowBindings.ts` 的 `autoBind` 用 `/^ksampler/i`、`/emptylatent/i`、`/checkpointloader/i`、`/^vaeloader$/i` 匹配节点类型。不认识 `CLIPTextEncodeSDXL`（双 `text_g`/`text_l`）、`T5TextEncode`、`FluxGuidance`、`ConditioningCombine`。
+   - `positiveDone` 只写第一个正向 encode，多正向节点的工作流会漏掉后面的。
+   - 方向：改走「从 KSampler 的 `positive`/`negative` link 反向遍历到真正的条件节点」，而不是靠类名。v1.15 后 `autoBind` 只在用户显式点「联动到自动设置」时跑，所以这条不再是 P0，但既然还留着入口就得修对。
+
+6. **删除只是隐藏**。`App.tsx` 的 `removed` 是 localStorage Set，图片仍在服务器上；UI 文案写的是「可恢复」。ComfyUI 没有标准删图 API，要真删得自己加成 Rust 命令去动服务器文件系统 —— 跨端风险大，建议**改文案**而不是加功能。
+
+7. **e2e 部分过期 + 无 CI** ✅已核实
+   - `.github/` 目录不存在，没有 CI。
+   - 仍过期的：`tests/app.spec.ts`、`tests/studio-settings.spec.ts`、`tests/catalog.spec.ts`（import 不存在的 `src/ModelImports`）、`tests/onboarding.spec.ts`（v1.15 起整个页面已删，可整份删掉）。
+   - 现在绿的只有 `tests/v114.spec.ts`（4）+ `tests/v115.spec.ts`（4）。
+   - 补 CI 的性价比最高：`tsc -b` + `vitest run` + `vite build` 三件套，十几行 YAML，能拦住本次这类回归（v1.14 的 COMBO 解析、v1.15 的轮询卡死都是单测能拦的）。
 
 ### P2 — 能更好
 
@@ -569,7 +618,9 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
    | ~~`src/PromptAssistant.tsx`~~ | v1.15 已删 |
    | ~~`src/usePromptSuggestions.ts`~~ / ~~`src/tags.worker.ts`~~ / ~~`src/caret.ts`~~ | v1.15 已删（Danbooru 联想整条链） |
 
-   注意 `src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这两个不算孤儿，别删。`src/data/booru.tsv.gz`（234 011 行离线索引）在 v1.15 后**已无运行时引用**，只有 `experience.test.ts` 还在断言它的行数；要不要留看是否还想要标签自动补全。
+   注意 `src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这两个不算孤儿，别删。`src/data/booru.tsv.gz`（**1 962 825 字节 / 234 011 行**）在 v1.15 后**已无运行时引用**：`src/tags.ts` 仍在但无人 import，只有 `experience.test.ts:9` 还在 `gunzipSync` 它断言行数。**留着这 1.9 MB 的唯一代价是打包体积**（`vite build` 会把它当 asset 拷进 `dist/`，但不进 js chunk）。下次要么连 `tags.ts` 一起删、测试改成断言 `wardrobe.json`，要么就明确「保留给未来的补全功能」。
+
+   另：`src/StudioModels.tsx` 与 `src/ModelPicker.tsx` 这两个孤儿从 v1.1.3 挂到现在，**删它们能顺便带走 `/bridge/*` 死接口**，是目前最干净的一次清理。
 10. 图片走 base64 data URL，大图吃内存；可以改成 `native` 返回本地临时文件路径 + `convertFileSrc`。
 11. `Settings.hires` / `Settings.upscale` / `Settings.loras` 在 v1.1.3 后没有 UI 入口（随 `SettingsPanel` 一起删了），只有 `{{key}}` 占位符能碰到 `clip_skip`，LoRA 完全碰不到。要做 LoRA 支持得先在设计上想清楚它和工作流节点的关系。
 

@@ -2079,3 +2079,105 @@ label select {
 .studio-prompts .negative-entry:active:not(:disabled) {
   background: var(--field);
 }
+
+/* v1.16 additions: wardrobe → scene description, and the image detail sheet. */
+.glossary-selection .describe-send {
+  width: 100%;
+  font-size: 12px;
+  min-height: 34px;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--accent);
+  border: 1px solid #e3e3e3;
+}
+.glossary-selection .describe-send:active {
+  background: #f2f2f2;
+}
+.image-details {
+  width: min(560px, calc(100% - 24px));
+}
+.image-details .detail-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #6f6f6f;
+  font-size: 13px;
+}
+.image-details .detail-error {
+  color: #b3261e;
+  font-size: 13px;
+}
+.image-details .detail-empty {
+  color: #6f6f6f;
+  font-size: 13px;
+}
+.image-details .detail-block {
+  margin-bottom: 14px;
+}
+.image-details .detail-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.image-details .detail-block-head h3 {
+  font-size: 13px;
+  margin: 0;
+  color: var(--accent);
+}
+.image-details .detail-block-head .studio-link {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  padding: 4px 2px;
+  color: #6d6d6d;
+}
+.image-details .detail-text {
+  margin: 0;
+  padding: 11px;
+  max-height: 32vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  background: #f6f6f6;
+  border-radius: 12px;
+}
+.image-details .detail-rows {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: #ededed;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.image-details .detail-rows > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 11px;
+  background: #fff;
+}
+.image-details .detail-rows dt {
+  font-size: 12px;
+  color: #787878;
+}
+.image-details .detail-rows dd {
+  margin: 0;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.image-details .detail-warnings {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #8a6a12;
+}

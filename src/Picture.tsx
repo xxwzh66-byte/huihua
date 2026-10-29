@@ -2,6 +2,7 @@ import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { cachedImage } from "./imageCache";
+import { thumbnailImage } from "./thumbnails";
 
 export function Picture({
   path,
@@ -22,9 +23,9 @@ export function Picture({
   source?: string;
   small?: boolean;
 }) {
-  const requestPath = small
-    ? path + (path.includes("?") ? "&" : "?") + "thumb=1"
-    : path;
+  // ComfyUI ignores unknown query parameters, so a `?thumb=1` original came
+  // back full size. Grids ask for a locally downscaled copy instead.
+  const requestPath = path;
   const [loaded, setLoaded] = useState<{ path: string; url: string } | null>(
     null,
   );
@@ -42,7 +43,10 @@ export function Picture({
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         observer.disconnect();
-        cachedImage(requestPath)
+        // Grids only ever need a few dozen KB per cell; the Viewer keeps the
+        // original-sized cache for itself.
+        const load = small ? thumbnailImage : cachedImage;
+        load(requestPath)
           .then((value) => {
             if (live) setLoaded({ path: requestPath, url: value });
           })
