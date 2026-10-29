@@ -10,23 +10,6 @@
   font-size: 0.76rem;
   gap: 6px;
 }
-.prompt-editor .prompt-issue-count {
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-}
-.prompt-editor .tag-option mark {
-  color: inherit;
-  background: transparent;
-  font-weight: 750;
-}
-.prompt-editor .suggestion-bubble {
-  overscroll-behavior: contain;
-}
-.prompt-editor .suggestion-retry {
-  margin-top: 8px;
-  width: 100%;
-  font-size: 0.8rem;
-}
 .prompt-editor .editor-save-error {
   flex-shrink: 0;
   padding: 12px;
@@ -200,30 +183,6 @@
   font-size: 0.85rem;
   margin-bottom: 8px;
 }
-.prompt-library .prompt-check-description {
-  margin: 20px 0;
-}
-.prompt-library .prompt-issues {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.prompt-library .prompt-issues li {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  background: #fff;
-  border-radius: 16px;
-  padding: 16px;
-  margin: 12px 0;
-  box-shadow: 0 4px 16px #3636360a;
-  font-size: 0.9rem;
-}
-.prompt-library .prompt-issues svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: #75621d;
-}
 .prompt-library .prompt-block-footer {
   display: flex;
   justify-content: flex-end;
@@ -257,11 +216,5 @@
   }
   .prompt-editor .editor-paper {
     min-height: 72px;
-  }
-  .prompt-editor .autocomplete-setting {
-    margin-block: 4px;
-  }
-  .prompt-editor .editor-hint {
-    line-height: 1.2;
   }
 }

@@ -1,4 +1,5 @@
 import type { ObjectInfo, Workflow } from "./api";
+import { optionList } from "./api";
 
 /** A ComfyUI link is `[sourceNodeId, outputSlot]`. */
 export type Link = [string, number];
@@ -49,16 +50,8 @@ function definitionOf(
 
 function optionsOf(definition: Definition | undefined): string[] | undefined {
   if (!definition) return undefined;
-  const [type, meta] = definition;
-  const raw =
-    type === "COMBO"
-      ? (meta as { options?: unknown })?.options
-      : Array.isArray(type)
-        ? type
-        : undefined;
-  return Array.isArray(raw)
-    ? raw.filter((value): value is string => typeof value === "string")
-    : undefined;
+  const options = optionList(definition);
+  return options.length ? options : undefined;
 }
 
 /**

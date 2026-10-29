@@ -1,157 +1,283 @@
-/* Vertical workflow flow — pure white, hairline borders, one accent.
-   ComfyUI API graphs are too wide for a phone, so nodes render as a compact
-   dependency-ordered list instead of a zoomable canvas. */
+/* Visual workflow canvas — icon nodes, wires, and a tap-to-open detail panel. */
 .workflow-canvas {
   border: 1px solid var(--line, #e4e4e4);
   border-radius: 18px;
   background: #fff;
-  overflow: hidden;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
 }
 
 .canvas-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line, #e4e4e4);
-  background: #fff;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .canvas-count {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted, #6d6d6d);
-  letter-spacing: 0.01em;
+}
+
+.canvas-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line, #e4e4e4);
+  border-radius: 10px;
+  padding: 2px 4px;
+}
+
+.canvas-zoom button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink, #1b1b1b);
+  cursor: pointer;
+}
+
+.canvas-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.canvas-zoom .canvas-fit {
+  width: auto;
+  min-width: 46px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #6d6d6d);
 }
 
 .canvas-bindings {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
 
 .binding-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
   font-size: 10.5px;
-  letter-spacing: 0.01em;
-  background: #f4f4f4;
-  color: var(--ink, #1b1b1b);
-  border: 1px solid #ececec;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #e4e4e4);
+  color: var(--muted, #6d6d6d);
+  white-space: nowrap;
 }
 
 .binding-chip.active {
-  background: #1b1b1b;
   border-color: #1b1b1b;
-  color: #fff;
+  color: #1b1b1b;
 }
 
-.canvas-flow {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  max-height: min(66vh, 660px);
+/* Pan surface: the graph is wider than a phone, so it scrolls in both axes. */
+.canvas-scroll {
   overflow: auto;
+  border: 1px dashed var(--line, #e4e4e4);
+  border-radius: 14px;
+  background: repeating-linear-gradient(
+      0deg,
+      #f4f4f4 0 1px,
+      transparent 1px 22px
+    ),
+    repeating-linear-gradient(90deg, #f4f4f4 0 1px, transparent 1px 22px);
+  max-height: min(52vh, 430px);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
-.flow-card {
+.canvas-stage {
   position: relative;
+}
+
+.canvas-graph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.edge {
+  fill: none;
+  stroke: #cdcdcd;
+  stroke-width: 1.5;
+}
+
+.edge.hot {
+  stroke: #1b1b1b;
+  stroke-width: 2;
+}
+
+.graph-node {
+  position: absolute;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  /* A single minmax(0,1fr) column keeps long class names from widening the
+     grid track past the fixed node width, which used to push labels outside. */
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 6px;
   border: 1px solid var(--line, #e4e4e4);
   border-radius: 14px;
   background: #fff;
+  color: var(--ink, #1b1b1b);
+  cursor: pointer;
   overflow: hidden;
+  text-align: center;
 }
 
-.flow-card::before {
-  content: "";
+.graph-node.selected {
+  border-color: #1b1b1b;
+  box-shadow: 0 0 0 2px #1b1b1b inset;
+}
+
+.graph-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: #f4f4f4;
+  color: #1b1b1b;
+}
+
+.graph-node.loader .graph-icon {
+  background: #eef3ff;
+}
+.graph-node.prompt .graph-icon {
+  background: #f3f0ff;
+}
+.graph-node.sample .graph-icon {
+  background: #fff2ec;
+}
+.graph-node.latent .graph-icon {
+  background: #eefaf2;
+}
+.graph-node.output .graph-icon {
+  background: #fdf6e3;
+}
+
+.graph-dot {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
   background: #1b1b1b;
-  opacity: 0.14;
 }
 
-.flow-card.loader::before {
-  opacity: 0.32;
-}
-.flow-card.prompt::before {
-  opacity: 0.24;
-}
-.flow-card.sample::before {
-  opacity: 0.2;
-}
-.flow-card.latent::before {
-  opacity: 0.12;
-}
-.flow-card.output::before {
-  opacity: 0.42;
+.graph-label {
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.flow-head {
+.graph-node small {
+  font-size: 9px;
+  color: var(--muted, #6d6d6d);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted, #6d6d6d);
+  text-align: center;
+  padding: 2px 0;
+}
+
+.canvas-empty {
+  margin: 0;
+  padding: 18px 6px;
+  font-size: 12.5px;
+  color: var(--muted, #6d6d6d);
+  text-align: center;
+}
+
+/* Detail panel — parameters of the selected node only. */
+.canvas-detail {
+  border: 1px solid var(--line, #e4e4e4);
+  border-radius: 14px;
+  padding: 10px 12px 12px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+}
+
+.detail-head {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 11px 12px;
-  background: none;
-  border: none;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  min-height: 46px;
+  gap: 9px;
 }
 
-.flow-head svg {
-  color: var(--muted, #6d6d6d);
-}
-
-.node-index {
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: #f4f4f4;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--muted, #6d6d6d);
-  font-variant-numeric: tabular-nums;
-}
-
-.flow-name {
+.detail-name {
   display: grid;
   gap: 1px;
   min-width: 0;
 }
 
-.flow-name strong {
+.detail-name strong {
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.flow-name small {
-  font-size: 10.5px;
+.detail-name small {
+  font-size: 10px;
   color: var(--muted, #6d6d6d);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.detail-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 9px;
+  background: #f6f6f6;
+  color: var(--muted, #6d6d6d);
+  cursor: pointer;
+}
+
 .node-fields {
   display: grid;
   gap: 8px;
-  padding: 0 12px 12px;
+}
+
+.node-empty {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted, #6d6d6d);
 }
 
 .node-field {
@@ -161,51 +287,55 @@
   color: var(--muted, #6d6d6d);
 }
 
-.node-field > span {
+.node-field > span:first-child {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  letter-spacing: 0.01em;
-  min-height: 20px;
-}
-
-.node-actions {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  min-width: 0;
+  /* Keep the label, the binding chip and its preview on one 18px line: wrapping
+     them doubled every field's height and made the panel feel like a form dump. */
+  flex-wrap: nowrap;
 }
 
-.node-field input,
+.node-field > span:first-child > em,
+.node-field > span:first-child > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-field input[type="text"],
+.node-field input[type="number"],
 .node-field select,
-.node-field textarea {
+.node-field textarea,
+.bound-editor {
   width: 100%;
   font: inherit;
   font-size: 12px;
   color: var(--ink, #1b1b1b);
   background: #fff;
   border: 1px solid var(--line, #e4e4e4);
-  border-radius: 9px;
-  padding: 7px 9px;
+  border-radius: 10px;
+  padding: 7px 10px;
   min-height: 34px;
 }
 
 .node-field textarea {
   resize: vertical;
-  line-height: 1.45;
-  font-family: inherit;
+  line-height: 1.5;
 }
 
-.node-field input:focus,
-.node-field select:focus,
-.node-field textarea:focus {
-  outline: 2px solid #1b1b1b;
-  outline-offset: 1px;
-}
-
-.node-field.node-longtext textarea {
-  min-height: 62px;
+.node-field select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #8a8a8a 50%),
+    linear-gradient(135deg, #8a8a8a 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) calc(50% + 1px),
+    calc(100% - 10px) calc(50% + 1px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
 }
 
 .node-toggle {
@@ -213,220 +343,177 @@
   align-items: center;
 }
 
-.node-toggle input {
-  width: 34px;
-  min-height: 20px;
+.node-toggle input[type="checkbox"] {
+  width: 20px;
   height: 20px;
   accent-color: #1b1b1b;
 }
 
-.node-link {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--muted, #6d6d6d);
-  padding: 5px 8px;
-  border: 1px dashed #e4e4e4;
-  border-radius: 9px;
+.node-field.node-toggle > span:first-child {
+  min-width: 0;
 }
 
-.node-link em {
-  font-style: normal;
-  color: var(--ink, #1b1b1b);
-  opacity: 0.72;
-  max-width: 58%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.node-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .node-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
+  gap: 3px;
   border: 1px solid #1b1b1b;
-  background: #1b1b1b;
-  color: #fff;
+  border-radius: 999px;
+  background: #fff;
+  color: #1b1b1b;
+  font: inherit;
   font-size: 10px;
+  padding: 1px 7px;
+  /* The global `button` rule forces a 44px touch target; these chips live in a
+     dense parameter list, so opt out and keep the row at 18px. */
+  min-height: 0;
+  line-height: 1.5;
   cursor: pointer;
-  overflow: hidden;
+  max-width: 100%;
+}
+
+.node-chip.ghost {
+  border-color: var(--line, #e4e4e4);
+  color: var(--muted, #6d6d6d);
 }
 
 .node-chip em {
   font-style: normal;
-  opacity: 0.72;
+  color: var(--muted, #6d6d6d);
   max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.node-chip.ghost {
-  background: #fff;
-  border-color: #e0e0e0;
-  color: var(--muted, #6d6d6d);
-}
-
-.node-chip.ghost:hover {
-  border-color: #c9c9c9;
-  color: var(--ink, #1b1b1b);
-}
-
-.node-bound .bound-editor {
-  width: 100%;
-  padding: 7px 9px;
-  border-radius: 9px;
-  border: 1px dashed #1b1b1b44;
-  background: #fafafa;
-  font-size: 12px;
-  color: var(--ink, #1b1b1b);
-  min-height: 34px;
-  resize: vertical;
-}
-
-.node-bound .bound-editor:focus {
-  outline: 2px solid #1b1b1b;
-  outline-offset: 1px;
-  border-style: solid;
-  background: #fff;
-}
-
 .node-expand {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   border: none;
   background: none;
-  color: var(--ink, #1b1b1b);
-  font-size: 10.5px;
   padding: 0;
-  cursor: pointer;
+  min-height: 0;
+  font: inherit;
+  font-size: 10px;
+  color: #1b1b1b;
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
-.node-empty,
-.canvas-empty {
-  font-size: 12px;
+.node-link {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  border: 1px dashed var(--line, #e4e4e4);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 10.5px;
   color: var(--muted, #6d6d6d);
-  margin: 0;
-  padding: 4px 0;
 }
 
-.canvas-prompt-dialog,
-.binding-dialog {
+.node-link em {
+  font-style: normal;
+  color: var(--ink, #1b1b1b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+.node-bound {
+  border-left: 2px solid #1b1b1b;
+  padding-left: 8px;
+}
+
+.canvas-prompt-dialog {
   width: min(880px, calc(100% - 20px));
-  max-height: 88vh;
-  border: none;
-  border-radius: 20px;
-  padding: 0;
-  overflow: auto;
-  background: #fff;
 }
 
 .binding-dialog {
   width: min(460px, calc(100% - 20px));
 }
 
-.canvas-prompt-dialog::backdrop,
-.binding-dialog::backdrop {
-  background: #1b1b1b55;
-}
-
-.canvas-prompt-dialog .modal-head,
-.binding-dialog .modal-head {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: #fff;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--line, #e4e4e4);
-}
-
-.canvas-prompt-dialog .muted,
-.binding-dialog .muted {
-  padding: 8px 16px 0;
-  margin: 0;
-  font-size: 11.5px;
-}
-
 .binding-hint {
-  margin: 8px 16px 0;
-  font-size: 12px;
-  line-height: 1.5;
+  margin: 4px 0 8px;
+  font-size: 11.5px;
+  line-height: 1.55;
   color: var(--muted, #6d6d6d);
 }
 
 .binding-list {
   display: grid;
   gap: 6px;
-  padding: 12px 16px 18px;
+  max-height: 58vh;
+  overflow: auto;
 }
 
 .binding-list button {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--line, #e4e4e4);
-  background: #fff;
   text-align: left;
-  cursor: pointer;
+  border: 1px solid var(--line, #e4e4e4);
+  border-radius: 11px;
+  background: #fff;
+  padding: 7px 10px;
+  font: inherit;
   color: var(--ink, #1b1b1b);
+  cursor: pointer;
 }
 
 .binding-list button.active {
   border-color: #1b1b1b;
-  box-shadow: inset 0 0 0 1px #1b1b1b;
 }
 
-.binding-list button span {
+.binding-list button > span {
   display: grid;
   gap: 1px;
   min-width: 0;
 }
 
 .binding-list button strong {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
 .binding-list button small {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted, #6d6d6d);
 }
 
 .binding-list button em {
   font-style: normal;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted, #6d6d6d);
-  max-width: 46%;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .binding-list .binding-clear {
-  justify-content: center;
+  grid-template-columns: auto 1fr;
+  justify-items: start;
   gap: 6px;
-  border-style: dashed;
   color: var(--muted, #6d6d6d);
-  font-size: 12px;
 }
 
 @media (max-width: 520px) {
-  .canvas-flow {
-    max-height: 60vh;
+  .canvas-scroll {
+    max-height: 46vh;
   }
-  .canvas-count {
-    font-size: 11.5px;
+  .canvas-detail {
+    padding: 9px 10px 10px;
   }
 }

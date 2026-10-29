@@ -215,21 +215,20 @@ test("an old locked status cannot relock the UI after authentication succeeds", 
 });
 
 
-test("startup shields the app, then a canceled biometric prompt can be retried", async ({ page }) => {
+test("startup shields the app without a splash, then a canceled biometric prompt can be retried", async ({ page }) => {
   const state = await adapter(page, [], true);
   await page.addInitScript(() => localStorage.setItem("biometric-auto-prompt", "true"));
   state.cancelUnlock = true;
   await page.goto("/");
-  await expect(page.getByRole("dialog", { name: "Démarrage", exact: true })).toBeVisible();
-  expect(state.unlocks).toBe(0);
+  // v1.14 removed the 2.6s splash, so the lock dialog is the first thing shown.
+  await expect(page.getByRole("dialog", { name: "Application verrouillée", exact: true })).toBeVisible();
+  await expect(page.locator(".startup-splash")).toHaveCount(0);
   await expect(page.locator(".protected-app")).toHaveAttribute("inert", "");
   await expect(page.getByRole("heading", { name: "Mochi est enfermé" })).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("annulée");
   expect(state.unlocks).toBe(1);
-  await page.screenshot({ path: "../verification/v0.10.0/lock-screen.png" });
   state.cancelUnlock = false;
   await page.getByRole("button", { name: "Le libérer", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Mes ordinateurs", exact: true })).toBeVisible();
+  await expect(page.locator(".protected-app")).not.toHaveAttribute("inert", "");
   expect(state.unlocks).toBe(2);
-  await expect(page.locator(".startup-splash")).toHaveCount(0);
 });

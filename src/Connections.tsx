@@ -28,6 +28,8 @@ type Props = {
   onQuickMenu: (value: boolean) => void;
   leftHanded: boolean;
   onHandedness: (value: boolean) => void;
+  autoSave: boolean;
+  onAutoSave: (value: boolean) => void;
   server: string;
   busy: boolean;
   active: boolean;
@@ -57,6 +59,8 @@ export default function Connections({
   onQuickMenu,
   leftHanded,
   onHandedness,
+  autoSave,
+  onAutoSave,
   server,
   busy,
   onConnect,
@@ -347,14 +351,23 @@ export default function Connections({
                 <small>Pictures / 绘画</small>
               </span>
             </div>
+            <label className="switch-row handedness-setting">
+              <span>
+                <strong>{tr("Enregistrement automatique")}</strong>
+                <small>
+                  {tr("Chaque image générée rejoint la galerie de l’appareil")}
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label={tr("Enregistrement automatique")}
+                checked={autoSave}
+                onChange={(e) => onAutoSave(e.target.checked)}
+              />
+            </label>
           </section>
           <UpdateSettings />
-          <button
-            className="setup-mobile-resume"
-            onClick={() => window.dispatchEvent(new Event("paint-setup"))}
-          >
-            {tr("Refaire la configuration")}
-          </button>
         </div>
       </details>
 

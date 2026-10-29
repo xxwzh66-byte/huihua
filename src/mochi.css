@@ -595,20 +595,6 @@ label select {
   background: #efefef;
   color: var(--accent);
 }
-.prompt-conflict {
-  display: flex;
-  gap: 8px;
-  padding: 0;
-  background: transparent;
-  text-align: left;
-  color: var(--accent);
-  min-height: 24px;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.prompt-conflict svg {
-  flex-shrink: 0;
-}
 .studio-generation {
   display: flex;
   flex-direction: column;
@@ -812,14 +798,6 @@ label select {
 .studio-imports > .save-preset-shortcut {
   color: var(--accent);
   background: #efefef;
-}
-.studio-imports > .file-picker {
-  font-size: 0;
-  gap: 0;
-}
-.studio-imports > .file-picker::after {
-  content: "Workflow / image";
-  font-size: 12px;
 }
 .studio-imports > .file-picker svg {
   width: 14px;
@@ -1503,13 +1481,6 @@ label select {
   gap: 12px;
   min-height: 66px;
 }
-.glossary-tag .tag-dot {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  border-radius: 7px;
-  background: #d4d4d4;
-}
 .glossary-tag > span:not(.tag-dot) {
   flex: 1;
   min-width: 0;
@@ -1600,18 +1571,6 @@ label select {
 .presets-page,
 .prompt-editor {
   border-radius: 0;
-}
-.suggestion-bubble,
-.prompt-tools-panel,
-.prompt-library-card,
-.new-preset-preview {
-  background: #fff;
-  border-color: var(--line);
-  color: var(--ink);
-}
-.suggestion-bubble button {
-  background: var(--lavender);
-  color: var(--accent);
 }
 .card-heading > button,
 .card-heading > button:hover:not(:disabled),

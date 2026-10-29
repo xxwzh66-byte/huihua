@@ -4,6 +4,8 @@ import {
   defaults,
   parseWorkflow,
   checkWorkflow,
+  invalidChoices,
+  sanitizeSettings,
 } from "./workflow";
 describe("ComfyUI workflows", () => {
   it("chains LoRA model and CLIP into the sampler and encoders", () => {
@@ -90,4 +92,54 @@ it("checkpoint without embedded VAE remains usable with an explicit VAE", () => 
   const {workflow:w} = buildWorkflow({...s, vae:"sdxl_vae.safetensors"}, {architecture:"checkpoint", embeddedVae:false});
   expect(w["20"].class_type).toBe("VAELoader");
   expect(w["6"].inputs.vae).toEqual(["20",0]);
+});
+
+// v1.14: ComfyUI rejects an empty sampler/scheduler with an error that names
+// no field (`Value not in list: scheduler: ''`). Catch it locally instead.
+const choiceInfo = {
+  KSampler: {
+    input: {
+      required: {
+        sampler_name: [["euler_ancestral", "dpmpp_2m"]],
+        scheduler: [[], { options: ["normal", "karras"] }],
+      },
+    },
+  },
+} as unknown as Parameters<typeof invalidChoices>[1];
+
+const samplerGraph = (sampler: string, scheduler: string) => ({
+  "5": {
+    class_type: "KSampler",
+    inputs: { sampler_name: sampler, scheduler, steps: 20 },
+  },
+});
+
+it("invalidChoices reports an empty combo value as (vide)", () => {
+  expect(invalidChoices(samplerGraph("", ""), choiceInfo)).toEqual([
+    "KSampler 5.sampler_name=(vide)",
+    "KSampler 5.scheduler=(vide)",
+  ]);
+});
+
+it("invalidChoices stays quiet for values the server does offer", () => {
+  expect(invalidChoices(samplerGraph("dpmpp_2m", "karras"), choiceInfo)).toEqual([]);
+});
+
+it("checkWorkflow refuses a graph ComfyUI would reject", () => {
+  expect(() => checkWorkflow(samplerGraph("", "normal"), choiceInfo)).toThrow(
+    "ComfyUI refuse ces valeurs",
+  );
+});
+
+it("sanitizeSettings repairs empty and unknown sampler/scheduler values", () => {
+  const saved = { ...defaults, sampler: "", scheduler: "not_a_scheduler" };
+  const fixed = sanitizeSettings(saved, choiceInfo);
+  expect(fixed.sampler).toBe("euler_ancestral");
+  expect(fixed.scheduler).toBe("normal");
+  // A value the server does offer is left untouched.
+  expect(sanitizeSettings({ ...saved, sampler: "dpmpp_2m" }, choiceInfo).sampler).toBe(
+    "dpmpp_2m",
+  );
+  // No object_info yet (offline) must not mangle anything.
+  expect(sanitizeSettings(saved, {} as Parameters<typeof sanitizeSettings>[1])).toEqual(saved);
 });

@@ -147,7 +147,7 @@ export default function Presets({
             aria-label={tr("Mes presets")}
             onClick={() => show()}
           >
-            Presets ↗
+            {tr("Mes presets")} ↗
           </button>
         </div>
         <button className="preset-current" onClick={() => show()}>
@@ -159,14 +159,7 @@ export default function Presets({
             </span>
           )}
           <span>
-            <strong>
-              {current &&
-              current.mode === "workflow" &&
-              JSON.stringify(current.workflow) === JSON.stringify(workflow) &&
-              JSON.stringify(current.settings) === JSON.stringify(settings)
-                ? current.name
-                : tr("Configuration personnalisée")}
-            </strong>
+            <strong>{current?.name ?? tr("Choisir un preset")}</strong>
             <small>
               {settings.model
                 ? shortName(settings.model)

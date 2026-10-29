@@ -121,15 +121,36 @@ export function historyImages(entries: History): GalleryItem[] {
   }
   return items;
 }
+/**
+ * ComfyUI writes a dropdown (COMBO) definition in more than one shape:
+ * `["COMBO", { options: [...] }]` on recent builds, `[[...values], {...}]` on
+ * older ones, and `["COMBO", { options: [...] }, {...}]` when it carries extra
+ * metadata. Read all of them, because a missed shape means an empty candidate
+ * list — and an empty list is exactly how an impossible value slips through.
+ */
+export function optionList(definition: unknown): string[] {
+  if (!Array.isArray(definition)) return [];
+  const [kind, meta] = definition as [unknown, unknown];
+  const metaOptions = (meta as { options?: unknown } | undefined)?.options;
+  const fromMeta = (metaOptions as { options?: unknown } | undefined)?.options ?? metaOptions;
+  const raw =
+    kind === "COMBO" || !Array.isArray(kind)
+      ? fromMeta
+      : (kind as unknown[]).length
+        ? kind
+        : fromMeta;
+  return Array.isArray(raw)
+    ? raw.filter((v): v is string => typeof v === "string")
+    : [];
+}
+
 export function choices(
   info: ObjectInfo,
   node: string,
   field: string,
 ): string[] {
   const definition = info[node]?.input?.required?.[field] ?? info[node]?.input?.optional?.[field];
-  const options = definition?.[1] as { options?: unknown } | undefined;
-  const value = definition?.[0] === "COMBO" ? options?.options : definition?.[0];
-  return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+  return optionList(definition);
 }
 
 export function modelChoices(info: ObjectInfo): string[] {

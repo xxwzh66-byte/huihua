@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
+  Box,
+  Boxes,
+  Frame,
+  ImageDown,
   Link2,
+  Minus,
   Pencil,
+  Plus,
+  SlidersHorizontal,
+  Type,
   Unlink,
+  X,
 } from "lucide-react";
 import { t as tr } from "./i18n";
 import { Modal } from "./Modal";
@@ -13,6 +20,7 @@ import { type ObjectInfo, type Workflow } from "./api";
 import {
   coerceField,
   isPromptField,
+  layoutGraph,
   nodeFields,
   nodeTitle,
   setField,
@@ -65,15 +73,32 @@ const ACCENTS: Record<string, string> = {
 
 const accentOf = (classType: string) => ACCENTS[classType] ?? "other";
 
+/** One glyph per node family, so a graph reads at a glance on a phone. */
+function iconOf(accent: string) {
+  if (accent === "loader") return <Boxes size={15} />;
+  if (accent === "prompt") return <Type size={15} />;
+  if (accent === "sample") return <SlidersHorizontal size={15} />;
+  if (accent === "latent") return <Frame size={15} />;
+  if (accent === "output") return <ImageDown size={15} />;
+  return <Box size={15} />;
+}
+
 /** Output nodes whose image is the live preview of the Atelier. */
 export function isPreviewNode(classType: string) {
   return /previewimage|saveimage/i.test(classType);
 }
 
+const NODE_WIDTH = 132;
+const NODE_HEIGHT = 78;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 1.3;
+const ZOOM_STEP = 0.15;
+
 /**
- * ComfyUI API graphs are wide DAGs that never fit a phone. The default view is
- * therefore a vertical flow: one full-width card per node, ordered by dependency
- * depth, with every connection rendered as a "← #id" chip instead of a curve.
+ * v1.14: the canvas is a real node graph now — compact icon nodes placed by
+ * `layoutGraph`, bezier wires between them, and parameters revealed only for the
+ * node you tap. The previous build stacked every field of every node in one long
+ * list, which is unreadable once a graph leaves the 7-node default.
  */
 export default function WorkflowCanvas({
   graph,
@@ -83,15 +108,28 @@ export default function WorkflowCanvas({
   onSettings,
   onMessage,
 }: Props) {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState("");
+  const [zoom, setZoom] = useState(0.8);
   const [editing, setEditing] = useState<{ id: string; field: string } | null>(
     null,
   );
   const [binding, setBinding] = useState<{ id: string; field: string } | null>(
     null,
   );
+  const viewport = useRef<HTMLDivElement | null>(null);
+  const fitted = useRef("");
 
-  const order = useMemo(() => flowOrder(graph), [graph]);
+  const layout = useMemo(
+    () =>
+      layoutGraph(graph, {}, {
+        width: NODE_WIDTH,
+        gapX: 40,
+        gapY: 16,
+        minHeight: NODE_HEIGHT,
+        collapsedHeight: NODE_HEIGHT,
+      }),
+    [graph],
+  );
   const plan = useMemo(
     () =>
       new Map(
@@ -101,6 +139,11 @@ export default function WorkflowCanvas({
   );
   const bound = useMemo(() => usedBindings(graph), [graph]);
 
+  const active = graph[selected] ? selected : "";
+  const activeNode = active ? graph[active] : null;
+  const activeFields = active ? (plan.get(active) ?? []) : [];
+  const accent = activeNode ? accentOf(activeNode.class_type) : "other";
+
   const editingNode = editing ? graph[editing.id] : null;
   const editingField = editing
     ? (plan.get(editing.id) ?? []).find((f) => f.name === editing.field)
@@ -109,6 +152,46 @@ export default function WorkflowCanvas({
   const bindingField = binding
     ? (plan.get(binding.id) ?? []).find((f) => f.name === binding.field)
     : null;
+
+  const step = (delta: number) =>
+    setZoom((value) =>
+      Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((value + delta) * 100) / 100)),
+    );
+
+  const fitZoom = () => {
+    const room = (viewport.current?.clientWidth ?? 0) - 12;
+    if (room <= 0 || layout.width <= 0) return;
+    const fit = Math.round((room / layout.width) * 100) / 100;
+    setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit)));
+  };
+
+  // Small graphs fit the phone width; wide ones stay readable at 80% and scroll
+  // sideways instead of shrinking into unreadable 6px icons.
+  const signature = `${Object.keys(graph).length}:${layout.width}`;
+  useEffect(() => {
+    if (fitted.current === signature) return;
+    const box = viewport.current;
+    if (!box) return;
+    const room = box.clientWidth - 12;
+    if (room <= 0 || layout.width <= 0) return;
+    fitted.current = signature;
+    const fit = Math.round((room / layout.width) * 100) / 100;
+    setZoom(fit >= 0.6 ? Math.min(ZOOM_MAX, fit) : 0.8);
+  }, [signature, layout.width]);
+
+  // Tapping a node that sits off-screen brings it into view.
+  useEffect(() => {
+    if (!active) return;
+    const node = layout.nodes.find((item) => item.id === active);
+    if (!node) return;
+    viewport.current?.scrollTo({
+      left: Math.max(0, node.x * zoom - 24),
+      behavior: "smooth",
+    });
+  }, [active, layout.nodes, zoom]);
+
+  if (!Object.keys(graph).length)
+    return <p className="canvas-empty">{tr("这个工作流没有节点。")}</p>;
 
   return (
     <div className="workflow-canvas">
@@ -122,6 +205,35 @@ export default function WorkflowCanvas({
             </>
           )}
         </span>
+        <div className="canvas-zoom">
+          <button
+            type="button"
+            aria-label={tr("缩小")}
+            disabled={zoom <= ZOOM_MIN}
+            onClick={() => step(-ZOOM_STEP)}
+          >
+            <Minus size={14} />
+          </button>
+          <button
+            type="button"
+            className="canvas-fit"
+            aria-label={tr("适应宽度")}
+            onClick={fitZoom}
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            type="button"
+            aria-label={tr("放大")}
+            disabled={zoom >= ZOOM_MAX}
+            onClick={() => step(ZOOM_STEP)}
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+      </div>
+
+      {bound.length > 0 && (
         <div className="canvas-bindings">
           {bound.map((key) => {
             const item = bindingOf(key);
@@ -136,68 +248,133 @@ export default function WorkflowCanvas({
             );
           })}
         </div>
-      </div>
-      <div className="canvas-flow">
-        {order.map((id, index) => {
-          const data = graph[id];
-          if (!data) return null;
-          const hidden = Boolean(collapsed[id]);
-          const fields = plan.get(id) ?? [];
-          return (
-            <article
-              key={id}
-              className={`flow-card ${accentOf(data.class_type)}`}
+      )}
+
+      <div className="canvas-scroll" ref={viewport}>
+        <div
+          className="canvas-stage"
+          style={{
+            width: layout.width * zoom,
+            height: layout.height * zoom,
+          }}
+        >
+          <div
+            className="canvas-graph"
+            style={{
+              width: layout.width,
+              height: layout.height,
+              transform: `scale(${zoom})`,
+            }}
+          >
+            <svg
+              className="canvas-edges"
+              width={layout.width}
+              height={layout.height}
+              aria-hidden="true"
             >
-              <button
-                type="button"
-                className="flow-head"
-                aria-expanded={!hidden}
-                onClick={() => setCollapsed({ ...collapsed, [id]: !hidden })}
-              >
-                <span className="node-index">{index + 1}</span>
-                <span className="flow-name">
-                  <strong>{nodeTitle(graph, id)}</strong>
-                  <small>#{id} · {data.class_type}</small>
-                </span>
-                {hidden ? (
-                  <ChevronRight size={16} />
-                ) : (
-                  <ChevronDown size={16} />
-                )}
-              </button>
-              {!hidden && (
-                <div className="node-fields">
-                  {fields.map((field) => (
-                    <NodeField
-                      key={field.name}
-                      field={field}
-                      classType={data.class_type}
-                      graph={graph}
-                      settings={settings}
-                      onSettings={onSettings}
-                      onEdit={(value) =>
-                        onChange(setField(graph, id, field.name, value))
-                      }
-                      onOpenPrompt={() =>
-                        setEditing({ id, field: field.name })
-                      }
-                      onBind={() =>
-                        setBinding({ id, field: field.name })
-                      }
-                    />
-                  ))}
-                  {fields.length === 0 && (
-                    <p className="node-empty">{tr("没有输入项。")}</p>
-                  )}
-                </div>
-              )}
-            </article>
-          );
-        })}
-        {order.length === 0 && (
-          <p className="canvas-empty">{tr("这个工作流没有节点。")}</p>
-        )}
+              {layout.edges.map((edge, index) => {
+                const from = layout.nodes.find((n) => n.id === edge.from);
+                const to = layout.nodes.find((n) => n.id === edge.to);
+                if (!from || !to) return null;
+                const x1 = from.x + NODE_WIDTH;
+                const y1 = from.y + NODE_HEIGHT / 2;
+                const x2 = to.x;
+                const y2 = to.y + NODE_HEIGHT / 2;
+                const curve = Math.max(26, Math.abs(x2 - x1) / 2);
+                const hot =
+                  active && (edge.from === active || edge.to === active);
+                return (
+                  <path
+                    key={`${edge.from}-${edge.to}-${edge.field}-${index}`}
+                    d={`M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`}
+                    className={hot ? "edge hot" : "edge"}
+                  />
+                );
+              })}
+            </svg>
+            {layout.nodes.map((node) => {
+              const data = graph[node.id];
+              if (!data) return null;
+              const nodeAccent = accentOf(data.class_type);
+              const isActive = node.id === active;
+              const wired = layout.edges.some((e) => e.to === node.id);
+              return (
+                <button
+                  key={node.id}
+                  type="button"
+                  className={`graph-node ${nodeAccent}${isActive ? " selected" : ""}`}
+                  style={{
+                    left: node.x,
+                    top: node.y,
+                    width: NODE_WIDTH,
+                    height: NODE_HEIGHT,
+                  }}
+                  aria-pressed={isActive}
+                  aria-label={tr("{0} · 节点 {1}", [
+                    nodeTitle(graph, node.id),
+                    node.id,
+                  ])}
+                  onClick={() => setSelected(isActive ? "" : node.id)}
+                >
+                  <span className="graph-icon">
+                    {iconOf(nodeAccent)}
+                    {wired && <i className="graph-dot" />}
+                  </span>
+                  <span className="graph-label">{nodeTitle(graph, node.id)}</span>
+                  <small>
+                    #{node.id} · {data.class_type}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {activeNode ? (
+        <section className={`canvas-detail ${accent}`} aria-live="polite">
+          <header className="detail-head">
+            <span className="graph-icon">{iconOf(accent)}</span>
+            <span className="detail-name">
+              <strong>{nodeTitle(graph, active)}</strong>
+              <small>
+                #{active} · {activeNode.class_type}
+              </small>
+            </span>
+            <button
+              type="button"
+              className="detail-close"
+              aria-label={tr("关闭参数")}
+              onClick={() => setSelected("")}
+            >
+              <X size={16} />
+            </button>
+          </header>
+          <div className="node-fields">
+            {activeFields.map((field) => (
+              <NodeField
+                key={field.name}
+                field={field}
+                classType={activeNode.class_type}
+                graph={graph}
+                settings={settings}
+                onSettings={onSettings}
+                onEdit={(value) =>
+                  onChange(setField(graph, active, field.name, value))
+                }
+                onOpenPrompt={() => setEditing({ id: active, field: field.name })}
+                onBind={() => setBinding({ id: active, field: field.name })}
+              />
+            ))}
+            {activeFields.length === 0 && (
+              <p className="node-empty">{tr("没有输入项。")}</p>
+            )}
+          </div>
+        </section>
+      ) : (
+        <p className="canvas-hint">{tr("点击节点查看并修改参数。")}</p>
+      )}
+
       {editing && editingField && editingNode && (
         <Modal
           title={tr("编辑 {0}", [editingField.name])}
@@ -244,14 +421,14 @@ export default function WorkflowCanvas({
                 ? item.kind === "number"
                 : item.kind !== "number",
             ).map((item) => {
-              const active =
+              const isActive =
                 typeof bindingField.value === "string" &&
                 bindingKeyOf(bindingField.value) === item.key;
               return (
                 <button
                   key={item.key}
                   type="button"
-                  className={active ? "active" : ""}
+                  className={isActive ? "active" : ""}
                   onClick={() => {
                     onChange(
                       setField(
@@ -262,9 +439,7 @@ export default function WorkflowCanvas({
                       ),
                     );
                     setBinding(null);
-                    onMessage(
-                      tr("{0} 已联动到自动设置。", [item.label]),
-                    );
+                    onMessage(tr("{0} 已联动到自动设置。", [item.label]));
                   }}
                 >
                   <span>
@@ -401,14 +576,24 @@ function NodeField({
     );
   }
   if (field.kind === "select") {
+    const options = field.options ?? [];
+    const value = String(field.value ?? "");
+    // v1.14: a graph imported from another install can hold a value this server
+    // does not offer. Show it as a disabled first option instead of silently
+    // rendering an unrelated one.
+    const stale = value !== "" && !options.includes(value);
     return (
       <label className="node-field">
         {head}
         <select
-          value={String(field.value ?? "")}
+          value={value}
           onChange={(event) => onEdit(event.target.value)}
         >
-          {(field.options ?? []).map((option) => (
+          {stale && (
+            <option value={value}>{`${value} · ${tr("不可用")}`}</option>
+          )}
+          {value === "" && <option value="">{tr("未选择")}</option>}
+          {options.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -471,40 +656,6 @@ function NodeField({
       />
     </label>
   );
-}
-
-/**
- * Dependency order for the vertical flow: a node appears after every node it
- * consumes. Cycles fall back to id order so the list is never empty.
- */
-export function flowOrder(graph: Workflow): string[] {
-  const ids = Object.keys(graph);
-  const parents = new Map<string, string[]>();
-  for (const id of ids) {
-    const list: string[] = [];
-    for (const value of Object.values(graph[id].inputs ?? {}))
-      if (Array.isArray(value) && typeof value[0] === "string" && graph[value[0]])
-        list.push(value[0]);
-    parents.set(id, [...new Set(list)]);
-  }
-  const depth = new Map<string, number>();
-  const walk = (id: string, stack: Set<string>): number => {
-    const known = depth.get(id);
-    if (known !== undefined) return known;
-    if (stack.has(id)) return 0;
-    stack.add(id);
-    let value = 0;
-    for (const parent of parents.get(id) ?? [])
-      value = Math.max(value, walk(parent, stack) + 1);
-    stack.delete(id);
-    depth.set(id, value);
-    return value;
-  };
-  for (const id of ids) walk(id, new Set());
-  return [...ids].sort((a, b) => {
-    const byDepth = (depth.get(a) ?? 0) - (depth.get(b) ?? 0);
-    return byDepth || a.localeCompare(b, "en", { numeric: true });
-  });
 }
 
 /** First non-empty prompt text found in a graph, for compact summaries. */

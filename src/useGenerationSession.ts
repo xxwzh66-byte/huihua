@@ -6,7 +6,7 @@ import {
   useCallback,
   type RefObject,
 } from "react";
-import { api, imagePath, type Queue, type History } from "./api";
+import { api, imagePath, imageUrl, native, type Queue, type History } from "./api";
 import { getClientId, writeStored } from "./sessionStorage";
 import { mapConcurrent, pollingDelay } from "./asyncPool";
 import type { ViewItem } from "./viewTypes";
@@ -14,8 +14,31 @@ import type { ViewItem } from "./viewTypes";
 export const clientId = getClientId();
 
 /**
+ * v1.14 default save: every freshly generated image can drop straight into the
+ * device gallery (Pictures / 绘画) without a trip to the gallery page. A failed
+ * save never interrupts the render: the image still lives on the ComfyUI server.
+ */
+async function persist(items: ViewItem[]) {
+  for (const item of items) {
+    try {
+      const dataUrl = await imageUrl(item.path);
+      await native("save_image", { dataUrl, filename: item.name });
+    } catch {
+      /* the render stays available in the gallery either way */
+    }
+  }
+}
+
+/**
  * v1.0 talks straight to a ComfyUI server: the queue and the history are the
  * only sources of truth, so there is no companion event stream any more.
+ *
+ * v1.15: the polling effect no longer restarts on every render. `onOnline` and
+ * `onError` arrive as inline closures from App, so listing them as effect
+ * dependencies tore the loop down and restarted it (immediately re-polling) on
+ * every state change — a generate() burst turned that into a poll storm that
+ * froze the app. They now live in refs, and a module-wide `active` lock stops a
+ * restarted loop from overlapping an in-flight poll.
  */
 export function useGenerationSession(
   server: string,
@@ -23,6 +46,7 @@ export function useGenerationSession(
   generation: RefObject<number>,
   onOnline: (value: boolean) => void,
   onError: (value: string) => void,
+  autoSave?: RefObject<boolean>,
 ) {
   const [queue, setQueue] = useState<Queue>({
     queue_running: [],
@@ -35,7 +59,13 @@ export function useGenerationSession(
   const [results, setResults] = useState<ViewItem[]>([]);
   const jobsRef = useRef<string[]>([]),
     cursor = useRef(0),
-    missing = useRef(new Map<string, number>());
+    missing = useRef(new Map<string, number>()),
+    savedImages = useRef(new Set<string>()),
+    busy = useRef(false),
+    onlineRef = useRef(onOnline),
+    errorRef = useRef(onError);
+  onlineRef.current = onOnline;
+  errorRef.current = onError;
   const wakeRef = useRef<() => void>(() => {});
   const track = useCallback((ids: string[], url: string) => {
     const start = !jobsRef.current.length && ids.length > 0;
@@ -50,16 +80,17 @@ export function useGenerationSession(
       timer: ReturnType<typeof setTimeout>;
     const version = generation.current;
     const valid = () => !stopped && version === generation.current;
-    let polling = false;
     async function poll() {
-      if (polling || !valid()) return;
-      polling = true;
+      // One poll at a time across restarts: a torn-down loop may still have a
+      // request in flight, and stacking another poll on top floods the server.
+      if (busy.current || !valid()) return;
+      busy.current = true;
       const polled = [...jobsRef.current];
       try {
         const q = await api<Queue>("/api/queue");
         if (!valid()) return;
         setQueue(q);
-        onOnline(true);
+        onlineRef.current(true);
         if (polled.length) {
           const running = q.queue_running.length > 0;
           setPhase(
@@ -68,6 +99,7 @@ export function useGenerationSession(
               : tr("En attente du GPU"),
           );
         }
+        if (!polled.length) return;
         const histories = await mapConcurrent(polled, 3, async (id) => {
           if (!valid()) throw new Error(tr("Session terminée"));
           return { id, entry: (await api<History>("/api/history/" + id))[id] };
@@ -103,7 +135,7 @@ export function useGenerationSession(
             );
             if (entry.status.status_str === "error") {
               failed = true;
-              onError(
+              errorRef.current(
                 String(
                   entry.status.messages?.find(
                     (m) => m[0] === "execution_error",
@@ -121,7 +153,7 @@ export function useGenerationSession(
             if (count >= 3) {
               done.add(id);
               failed = true;
-              onError(
+              errorRef.current(
                 tr("Une tâche a disparu de la file et de l’historique du serveur."),
               );
             }
@@ -137,6 +169,11 @@ export function useGenerationSession(
               writeStored("results:" + server, next);
               return next;
             });
+          // Never hand the same render to the gallery twice, even when a poll
+          // overlaps with the default-save loop still writing the last batch.
+          const fresh = found.filter((item) => !savedImages.current.has(item.path));
+          for (const item of fresh) savedImages.current.add(item.path);
+          if (fresh.length && autoSave?.current) void persist(fresh);
           setPreview("");
           setProgress(remaining.length ? 0 : failed ? 0 : 100);
           setPhase(
@@ -149,12 +186,12 @@ export function useGenerationSession(
         }
       } catch {
         if (valid()) {
-          onOnline(false);
+          onlineRef.current(false);
           if (jobsRef.current.length)
             setPhase(tr("Connexion perdue · reprise automatique"));
         }
       } finally {
-        polling = false;
+        busy.current = false;
         if (!stopped)
           timer = setTimeout(
             poll,
@@ -178,10 +215,11 @@ export function useGenerationSession(
       wakeRef.current = () => {};
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [server, epoch, track, generation, onOnline, onError]);
+  }, [server, epoch, track, generation, autoSave]);
   const reset = () => {
     cursor.current = 0;
     missing.current.clear();
+    savedImages.current.clear();
     track([], "");
     setQueue({ queue_running: [], queue_pending: [] });
     setResults([]);

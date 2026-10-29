@@ -4,18 +4,14 @@ import { useMemo, useState, useEffect } from "react";
 import {
   History,
   Layers,
-  ScanText,
   Trash2,
   Pencil,
   Search,
   Plus,
   RotateCcw,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import { Modal } from "./components";
 import {
-  checkPrompts,
   readPromptLibrary,
   writePromptLibrary,
   promptStorageError,
@@ -26,7 +22,7 @@ import {
 } from "./promptLibrary";
 import "./prompt-experience.css";
 
-type Page = LibraryKind | "check";
+type Page = LibraryKind;
 type DeletedEntry = { item: PromptEntry; index: number };
 const searchable = (text: string) =>
   text
@@ -116,10 +112,6 @@ export default function PromptTools({
   const [draft, setDraft] = useState<PromptEntry | null>(null);
   const [draftError, setDraftError] = useState("");
   const [deleted, setDeleted] = useState<DeletedEntry | null>(null);
-  const issues = useMemo(
-    () => checkPrompts(values),
-    [values.positive, values.negative],
-  );
   const filtered = useMemo(() => {
     const query = searchable(search.trim());
     return items.filter((entry) =>
@@ -136,7 +128,6 @@ export default function PromptTools({
     setDeleted(null);
     setReady(false);
     setPage(kind);
-    if (kind === "check") return;
     try {
       setItems(readPromptLibrary(kind));
       setReady(true);
@@ -153,7 +144,7 @@ export default function PromptTools({
     setDeleted(null);
   }
   function save(next: PromptEntry[]) {
-    if (!page || page === "check") return;
+    if (!page) return;
     writePromptLibrary(page, next);
     setItems(next);
   }
@@ -210,55 +201,20 @@ export default function PromptTools({
           <History size={16} /> {tr("Historique")}{" "}
         </button>
         <button onClick={() => show("blocks")}>
-          <Layers size={16} /> {tr("Bibliothèque")}{" "}
-        </button>
-        <button onClick={() => show("check")}>
-          <ScanText size={16} /> {tr("Vérifier")}{" "}
-          {issues.length > 0 && (
-            <span className="prompt-issue-count">({issues.length})</span>
-          )}
+          <Layers size={16} /> {tr("Blocs")}{" "}
         </button>
       </div>
       {page && (
         <Modal
           title={
-            page === "check"
-              ? tr("Vérifier les prompts")
-              : page === "history"
-                ? tr("Historique de prompts")
-                : tr("Blocs réutilisables")
+            page === "history"
+              ? tr("Historique de prompts")
+              : tr("Blocs réutilisables")
           }
           className="prompt-library"
           onClose={close}
         >
-          {page === "check" ? (
-            <>
-              <p className="hint prompt-check-description">
-                {" "}
-                {tr(
-                  "Analyse locale des tags séparés par des virgules. Les contradictions de sens restent des pistes à vérifier, selon la scène.",
-                )}{" "}
-              </p>
-              {issues.length ? (
-                <ul className="prompt-issues">
-                  {issues.map((issue) => (
-                    <li key={issue}>
-                      <AlertCircle size={19} aria-hidden="true" />
-                      <span>{issue}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="prompt-library-empty">
-                  <CheckCircle2 size={32} />
-                  <p>
-                    {tr("Aucun conflit repéré par les règles disponibles.")}
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
+          <>
               <div className="prompt-library-toolbar">
                 <label className="search-box">
                   <Search size={19} aria-hidden="true" />
@@ -379,12 +335,11 @@ export default function PromptTools({
                   </button>
                 </div>
               )}
-            </>
-          )}
+          </>
           {error && (
             <div className="prompt-library-error" role="alert">
               <p>{error}</p>
-              {!ready && page !== "check" && (
+              {!ready && (
                 <button onClick={() => show(page)}>{tr("Réessayer")}</button>
               )}
             </div>

@@ -55,7 +55,7 @@ export default function Welcome({
           <BookOpen />
           <span>
             <strong>{tr("Trouvez les bons mots")}</strong>
-            <small>{tr("Prompts et tags Danbooru pour chaque idée.")}</small>
+            <small>{tr("Une garde-robe de tenues, poses et décors prêts à cliquer.")}</small>
           </span>
         </div>
         <div>
@@ -79,7 +79,7 @@ export default function Welcome({
         </button>
         <button className="text-button" onClick={onExplore}>
           {" "}
-          {tr("Découvrir le glossaire d’abord")}{" "}
+          {tr("Découvrir la garde-robe d’abord")}{" "}
         </button>
       </div>
     </section>

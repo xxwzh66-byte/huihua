@@ -46,6 +46,7 @@ import {
   normalizeSettings,
   parseWorkflow,
   checkWorkflow,
+  sanitizeSettings,
   type Settings,
 } from "./workflow";
 import { importImage, resolveImport, type Imported } from "./metadata";
@@ -68,7 +69,6 @@ import ConnectionStatus from "./ConnectionStatus";
 import GalleryGrid from "./GalleryGrid";
 
 import Welcome from "./Welcome";
-import Onboarding from "./Onboarding";
 import Toast from "./Toast";
 
 import {
@@ -105,24 +105,6 @@ function saveSet(name: string, server: string, value: Set<string>) {
 
 export default function App() {
   useLocale();
-  const [setupStep, setSetupStep] = useState(() =>
-    Math.max(0, Math.min(4, Number(stored("onboarding-step", 0)) || 0)),
-  );
-  const [setupDone, setSetupDone] = useState(
-    () => stored<boolean>("onboarding-done", false) === true,
-  );
-  const [setupOpen, setSetupOpen] = useState(
-    () => stored<boolean>("onboarding-done", false) !== true,
-  );
-  useEffect(() => {
-    const reopen = () => {
-      setSetupStep(0);
-      writeStored("onboarding-step", 0);
-      setSetupOpen(true);
-    };
-    window.addEventListener("paint-setup", reopen);
-    return () => window.removeEventListener("paint-setup", reopen);
-  }, []);
   const followResult = useRef(false);
   useEffect(() => {
     const stop = () => {
@@ -144,6 +126,11 @@ export default function App() {
   const [leftHanded, setLeftHanded] = useState(
     () => stored<boolean>("left-handed", false) === true,
   );
+  const [autoSave, setAutoSave] = useState(
+    () => stored<boolean>("auto-save", true) !== false,
+  );
+  const autoSaveRef = useRef(autoSave);
+  autoSaveRef.current = autoSave;
   const { tab, setTab, setInitialTab, handlers, trackRef } =
     usePageNavigation();
   const [server, setServer] = useState(""),
@@ -173,6 +160,10 @@ export default function App() {
   const [custom, setCustom] = useState<Workflow | null>(null),
     [customText, setCustomText] = useState(""),
     [graphView, setGraphView] = useState<"visual" | "json">("visual"),
+    // v1.14: the workflow carries a name so the Atelier can show which saved
+    // graph is generating, and the shelf can overwrite it instead of forking.
+    [workflowName, setWorkflowName] = useState(""),
+    [workflowId, setWorkflowId] = useState(""),
     [imported, setImported] = useState<Imported | null>(null);
   const submitLock = useRef(false),
     generation = useRef(0),
@@ -200,7 +191,14 @@ export default function App() {
     results,
     setResults,
     reset: resetGeneration,
-  } = useGenerationSession(server, epoch, generation, setOnline, setError);
+  } = useGenerationSession(
+    server,
+    epoch,
+    generation,
+    setOnline,
+    setError,
+    autoSaveRef,
+  );
   const [glossaryVisited, setGlossaryVisited] = useState(false);
   useEffect(() => {
     if (tab === "glossary") setGlossaryVisited(true);
@@ -219,17 +217,13 @@ export default function App() {
         request !== hydrationRequest.current
       )
         return;
-      const models = modelChoices(i);
       const saved = normalizeSettings(
         stored("settings:" + url, stored("settings", defaults)),
       );
-      setSettings({
-        ...saved,
-        model: models.includes(saved.model) ? saved.model : (models[0] ?? ""),
-        sampler: choices(i, "KSampler", "sampler_name").includes(saved.sampler)
-          ? saved.sampler
-          : (choices(i, "KSampler", "sampler_name")[0] ?? defaults.sampler),
-      });
+      // v1.14: the stored settings can hold a sampler/scheduler this server no
+      // longer offers (or an empty string written by an older build). Repair
+      // every COMBO value against /object_info before it reaches the workflow.
+      setSettings(sanitizeSettings(saved, i));
       setStats(s);
       setInfo(i);
       setFavorites(loadSet("favorites", url));
@@ -288,6 +282,8 @@ export default function App() {
     setImported(null);
     setCustom(null);
     setCustomText("");
+    setWorkflowName("");
+    setWorkflowId("");
     setProgress(0);
     setPhase(tr("Prêt à créer"));
     clearImageCache();
@@ -329,10 +325,20 @@ export default function App() {
     const version = generation.current;
     try {
       if (!custom) throw new Error(tr("Importez et validez un workflow API."));
+      // v1.14: never submit an empty or stale sampler/scheduler. Repair the
+      // settings against /object_info first, then resolve the placeholders.
+      const safe = sanitizeSettings(settings, info);
+      if (
+        safe.sampler !== settings.sampler ||
+        safe.scheduler !== settings.scheduler ||
+        safe.model !== settings.model ||
+        safe.vae !== settings.vae
+      )
+        setSettings(safe);
       const builds: { workflow: Workflow; settings?: Settings }[] = [
         // Placeholders (`{{prompt}}`, `{{sampler}}`…) are resolved here so the
         // prompt card and the placeholder editors drive the imported graph.
-        { workflow: resolveGraph(custom, settings), settings },
+        { workflow: resolveGraph(custom, safe), settings: safe },
       ];
       builds.forEach((b) => checkWorkflow(b.workflow, info));
       try {
@@ -589,7 +595,9 @@ export default function App() {
       schedulers: choices(info, "KSampler", "scheduler"),
     });
     if (version !== generation.current) return;
-    setSettings(normalizeSettings(parsed.settings));
+    // v1.14: metadata written by another ComfyUI install can carry a sampler or
+    // scheduler this server does not offer. Repair it against /object_info.
+    setSettings(sanitizeSettings(normalizeSettings(parsed.settings), info));
     setImported(parsed);
     if (parsed.workflow) {
       setCustom(parsed.workflow);
@@ -630,17 +638,16 @@ export default function App() {
       } else {
         const w = parseWorkflow(await file.text());
         if (version !== generation.current) return;
-        // Fresh imports are wired to the automatic settings straight away:
-        // prompts, sampler, steps, CFG, size and the checkpoint become
-        // placeholders, so the Atelier keeps driving the graph.
-        const bound = autoBind(w);
-        setCustom(bound.graph);
-        setCustomText(JSON.stringify(bound.graph, null, 2));
-        setNotice(
-          bound.bound.length
-            ? tr("{0} 个参数已联动到自动设置。", [bound.bound.length])
-            : tr("工作流已导入。"),
-        );
+        // v1.15: an import stays exactly as written. Binding to the automatic
+        // settings is now an explicit action ("Lier les paramètres"), so the
+        // graph never silently changes behind the user's back.
+        setCustom(w);
+        setCustomText(JSON.stringify(w, null, 2));
+        // A fresh import is not tied to a saved entry yet: clear the name so the
+        // shelf cannot overwrite the workflow the user had open before.
+        setWorkflowName(file.name.replace(/\.json$/i, "").slice(0, 120));
+        setWorkflowId("");
+        setNotice(tr("工作流已导入。"));
       }
     } catch (e) {
       if (version === generation.current) setError(String(e));
@@ -714,7 +721,7 @@ export default function App() {
                 create: tr("Votre imagination,"),
                 prompt: tr("Le prompt juste."),
                 gallery: tr("Vos petits mondes"),
-                glossary: tr("Le mot juste."),
+                glossary: tr("La garde-robe."),
                 connect: tr("Paramètres"),
               }[tab]
             }
@@ -725,7 +732,7 @@ export default function App() {
                 create: tr("La puissance du serveur. La liberté du mobile."),
                 prompt: tr("Une phrase, et l’API écrit les tags."),
                 gallery: tr("Vos créations, autant d’idées à retrouver."),
-                glossary: tr("Un glossaire Danbooru pour guider vos idées."),
+                glossary: tr("Tenues, poses, décors et expressions, prêts à cliquer."),
                 connect: tr("Votre serveur, vos préférences, votre espace."),
               }[tab]
             }
@@ -746,7 +753,7 @@ export default function App() {
           fallback={
             <div
               className="section-skeleton"
-              aria-label={tr("Ouverture du glossaire")}
+              aria-label={tr("Ouverture de la bibliothèque")}
             />
           }
         >
@@ -768,14 +775,6 @@ export default function App() {
           />
         </Suspense>
       )}
-      {tab === "connect" && !setupDone && (
-        <button
-          className="setup-mobile-resume"
-          onClick={() => setSetupOpen(true)}
-        >
-          {tr("Reprendre la configuration")}
-        </button>
-      )}
       {tab === "connect" && (
         <Connections
           active={active}
@@ -793,6 +792,16 @@ export default function App() {
           onHandedness={(value) => {
             setLeftHanded(value);
             if (!writeStored("left-handed", value))
+              notify(
+                tr(
+                  "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
+                ),
+              );
+          }}
+          autoSave={autoSave}
+          onAutoSave={(value) => {
+            setAutoSave(value);
+            if (!writeStored("auto-save", value))
               notify(
                 tr(
                   "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
@@ -867,6 +876,9 @@ export default function App() {
                 setCustomText(
                   p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
                 );
+                // A preset owns its graph; it is not a library entry.
+                setWorkflowName(p.name);
+                setWorkflowId("");
                 setImported(null);
                 setNotice(tr("Preset « {0} » chargé.", [p.name]));
                 setError("");
@@ -921,7 +933,7 @@ export default function App() {
               <p className="muted">
                 {" "}
                 {tr(
-                  "导入 ComfyUI 的 API 工作流后可以直接改参数。用占位符（如 {{sampler}}、{{prompt}}）把字段交给工坊设置，生成时会自动填入。",
+                  "导入 ComfyUI 的 API 工作流后可以直接改参数。用占位符（如 {{sampler}}、{{prompt}}）把字段交给工坊设置，生成时会自动填入。导入不会改动你的图，需要时点「关联到自动设置」。",
                 )}{" "}
               </p>
               <div className="workflow-toolbar">
@@ -953,9 +965,18 @@ export default function App() {
               </div>
               <WorkflowShelf
                 graph={custom}
-                onLoad={(next, name) => {
+                name={workflowName}
+                id={workflowId}
+                onName={setWorkflowName}
+                onSaved={(nextName, nextId) => {
+                  setWorkflowName(nextName);
+                  setWorkflowId(nextId);
+                }}
+                onLoad={(next, name, id) => {
                   setCustom(next);
                   setCustomText(JSON.stringify(next, null, 2));
+                  setWorkflowName(name);
+                  setWorkflowId(id);
                   setNotice(tr("已载入「{0}」。", [name]));
                 }}
                 onMessage={notify}
@@ -1210,7 +1231,7 @@ export default function App() {
               <div>
                 <strong>
                   {custom
-                    ? tr("Workflow personnalisé")
+                    ? workflowName.trim() || tr("未命名工作流")
                     : tr("Importez un workflow API")}
                 </strong>
                 <small>
@@ -1374,43 +1395,6 @@ export default function App() {
       )}
     </>
   );
-  if (setupOpen)
-    return (
-      <Onboarding
-        step={setupStep}
-        onStep={(n) => {
-          setSetupStep(n);
-          writeStored("onboarding-step", n);
-        }}
-        onLater={() => setSetupOpen(false)}
-        onFinish={() => {
-          if (!writeStored("onboarding-done", true))
-            notify(
-              tr(
-                "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
-              ),
-            );
-          setSetupDone(true);
-          setSetupOpen(false);
-          setTab(server ? "create" : "connect");
-        }}
-        onConnect={() => {
-          setSetupOpen(false);
-          setTab("connect");
-        }}
-        online={online}
-        leftHanded={leftHanded}
-        onHandedness={(v) => {
-          setLeftHanded(v);
-          writeStored("left-handed", v);
-        }}
-        quickMenu={quickMenu}
-        onQuickMenu={(v) => {
-          setQuickMenu(v);
-          writeStored("quick-menu", v);
-        }}
-      />
-    );
   return (
     <div className={`app ${leftHanded ? "left-handed" : ""}`}>
       <AppUpdater />
@@ -1455,7 +1439,7 @@ export default function App() {
               { id: "create", label: tr("Atelier"), icon: SlidersHorizontal },
               { id: "prompt", label: tr("提示词"), icon: Wand2 },
               { id: "gallery", label: tr("Galerie"), icon: Images },
-              { id: "glossary", label: tr("Glossaire"), icon: BookOpen },
+              { id: "glossary", label: tr("Garde-robe"), icon: BookOpen },
               { id: "connect", label: tr("Paramètres"), icon: Settings2 },
             ] as const
           ).map((t) => (

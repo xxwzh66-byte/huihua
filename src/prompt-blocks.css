@@ -27,10 +27,6 @@
 .editor-mode-bar button[aria-pressed="false"] {
   background: transparent;
 }
-.editor-mode-bar .voice-entry {
-  background: #ededed;
-  color: var(--accent);
-}
 .prompt-board {
   flex: 1 1 160px;
   min-height: 80px;
@@ -414,15 +410,6 @@
     justify-content: flex-end;
   }
   .prompt-editor.compact-editor:has(.editor-mode-bar) .modal-head h2,
-  .prompt-editor.compact-editor .voice-entry span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .prompt-editor.compact-editor .editor-mode-bar {
     position: absolute;
     top: 8px;
@@ -432,9 +419,5 @@
   }
   .prompt-editor.compact-editor .editor-mode-bar > div {
     padding: 0 4px;
-  }
-  .prompt-editor.compact-editor .voice-entry {
-    width: 36px;
-    padding: 8px;
   }
 }

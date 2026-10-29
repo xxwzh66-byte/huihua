@@ -1,5 +1,5 @@
 import { compilePrompt } from "./promptDocument";
-import { choices } from "./api";
+import { choices, optionList } from "./api";
 import { t as tr } from "./i18n";
 import type { Workflow, ObjectInfo } from "./api";
 import { parse as parseLossless } from "lossless-json";
@@ -138,10 +138,65 @@ export function checkWorkflow(w: Workflow, info: ObjectInfo) {
   if (missing.length) throw new Error(tr("Nœuds absents du PC : {0}", [missing.join(", ")]));
   for (const node of Object.values(w)) {
     if (node.class_type !== "LatentUpscale" || node.inputs.upscale_method !== "bicubic") continue;
-    const definition = info.LatentUpscale?.input?.required?.upscale_method;
-    const methods = definition?.[0] === "COMBO" ? (definition[1] as { options?: unknown })?.options : definition?.[0];
-    if (Array.isArray(methods) && !methods.includes("bicubic")) {
+    const methods = optionList(info.LatentUpscale?.input?.required?.upscale_method);
+    if (methods.length && !methods.includes("bicubic")) {
       throw new Error(tr("L’agrandissement latent bicubique importé n’est pas disponible sur ce PC. Choisissez explicitement une autre méthode Hires Fix."));
     }
   }
+  const refused = invalidChoices(w, info);
+  if (refused.length)
+    throw new Error(
+      tr("ComfyUI refuse ces valeurs : {0}. Choisissez une valeur proposée par votre serveur.", [
+        refused.slice(0, 4).join(" · "),
+      ]),
+    );
+}
+
+/**
+ * v1.14: ComfyUI answers an empty or unknown COMBO value with
+ * `prompt_outputs_failed_validation` and silently ignores the output. Catch it
+ * here, before the prompt leaves the phone, and name the offending field.
+ */
+export function invalidChoices(w: Workflow, info: ObjectInfo): string[] {
+  const problems: string[] = [];
+  for (const [id, node] of Object.entries(w)) {
+    const declared = info[node.class_type];
+    if (!declared) continue;
+    for (const [name, value] of Object.entries(node.inputs ?? {})) {
+      if (typeof value !== "string") continue;
+      const definition = declared.input?.required?.[name] ?? declared.input?.optional?.[name];
+      const allowed = optionList(definition);
+      if (!allowed.length) continue;
+      if (allowed.includes(value)) continue;
+      problems.push(`${node.class_type} ${id}.${name}=${value.trim() ? value : tr("(vide)")}`);
+    }
+  }
+  return problems;
+}
+
+const chosen = (list: string[], value: string, fallback: string): string => {
+  const clean = value.trim();
+  if (clean && list.includes(clean)) return clean;
+  if (fallback && list.includes(fallback)) return fallback;
+  return list[0] ?? fallback;
+};
+
+/**
+ * v1.14: repair settings the server no longer offers. A stored `scheduler: ""`
+ * or a sampler removed from ComfyUI used to travel straight into the workflow
+ * as an empty COMBO; here it falls back to the server's list (or the default),
+ * so generation never submits an impossible prompt.
+ */
+export function sanitizeSettings(s: Settings, info: ObjectInfo): Settings {
+  if (!info || !Object.keys(info).length) return s;
+  const samplers = choices(info, "KSampler", "sampler_name");
+  const schedulers = choices(info, "KSampler", "scheduler");
+  const models = [...new Set([...choices(info, "CheckpointLoaderSimple", "ckpt_name"), ...choices(info, "UNETLoader", "unet_name")])];
+  const vaes = choices(info, "VAELoader", "vae_name");
+  const next: Settings = { ...s };
+  if (samplers.length) next.sampler = chosen(samplers, s.sampler, defaults.sampler);
+  if (schedulers.length) next.scheduler = chosen(schedulers, s.scheduler, defaults.scheduler);
+  if (models.length) next.model = chosen(models, s.model, "");
+  if (vaes.length && s.vae && !vaes.includes(s.vae.trim())) next.vae = "";
+  return next;
 }

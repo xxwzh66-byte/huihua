@@ -18,13 +18,6 @@
 .toast>span { flex: 1; min-width: 150px; max-height: 100px; overflow: auto; overflow-wrap: anywhere; }
 .toast>button { background: transparent; color: #fff; border: 0; padding: 8px; }
 .toast-error { background: #575757; }
-.autocomplete-setting { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; flex-shrink: 0; gap: 12px; margin: 0 0 12px; font-size: .75rem; font-weight: 500; }
-.autocomplete-setting input { appearance: none; width: 39px; height: 24px; min-height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #d4d4d4; cursor: pointer; }
-.autocomplete-setting input::before { content: ""; display: block; height: 18px; width: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.autocomplete-setting input:checked { background: #848484; }
-.autocomplete-setting input:checked::before { transform: translateX(15px); }
-.suggestion-bubble { min-height: 106px; }
-.suggestion-empty { font-size: .8rem; color: #727272; padding: 10px 0; }
 .presets-page { position: fixed; inset: 0; margin: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: max(18px,var(--safe-top)) max(20px,calc((100vw - 960px)/2)) max(24px,var(--safe-bottom)); background: #f6f6f6; }
 .presets-page[open] { display: flex; flex-direction: column; }
 .presets-page>.modal-head { flex-shrink: 0; }
@@ -66,7 +59,6 @@
 .gesture-action[data-action=favorite] { background: #858585; }
 .gesture-action[hidden] { display: none; }
 @media(max-width:600px) { .preset-toolbar { flex-direction: column; align-items: stretch; }.preset-toolbar .search-box { width: 100%; }.connection-details { grid-template-columns: 1fr; }.card-heading>button { background: #fff; } }
-@media(prefers-reduced-motion:reduce) { .autocomplete-setting input::before { transition: none; } }
 @media(max-width:1200px) { .page-window { --pane-inset: 27px; } }
 @media(max-width:760px) { .page-window { --pane-inset: 18px; } }
 @media(max-width:360px) { .page-window { --pane-inset: 12px; } }

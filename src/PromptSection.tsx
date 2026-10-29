@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
-import { AlertCircle, History, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { History, Sparkles } from "lucide-react";
 import { t as tr } from "./i18n";
-import { checkPrompts } from "./promptLibrary";
 import type { Settings } from "./workflow";
 import PromptEditor from "./PromptEditor";
 import "./prompt-section.css";
@@ -23,13 +22,10 @@ export default function PromptSection({
   onGenerate: () => void;
 }) {
   const [editor, setEditor] = useState<"positive" | "negative" | null>(null);
-  const [tool, setTool] = useState<
-    "history" | "blocks" | "check" | undefined
-  >();
-  const issues = useMemo(() => checkPrompts(s), [s.positive, s.negative]);
+  const [tool, setTool] = useState<"history" | "blocks" | undefined>();
   const openEditor = (
     side: "positive" | "negative",
-    nextTool?: "history" | "blocks" | "check",
+    nextTool?: "history" | "blocks",
   ) => {
     setTool(nextTool);
     setEditor(side);
@@ -67,7 +63,7 @@ export default function PromptSection({
             {" "}
             {tr("+ Bloc réutilisable")}{" "}
           </button>
-          <button onClick={onGlossary}>{tr("Ouvrir le glossaire")}</button>
+          <button onClick={onGlossary}>{tr("Ouvrir la garde-robe")}</button>
           <button onClick={onGenerate}>
             <Sparkles size={13} /> {tr("用 API 生成提示词")}
           </button>
@@ -80,18 +76,6 @@ export default function PromptSection({
           <small>{tr("NÉGATIF")}</small>
           <span>{s.negative || tr("Ce que vous préférez éviter…")}</span>
         </button>
-        {issues.length > 0 && (
-          <button
-            className="prompt-conflict"
-            onClick={() => openEditor("positive", "check")}
-          >
-            <AlertCircle size={16} />
-            <span>
-              {issues[0]}
-              {issues.length > 1 ? ` (+${issues.length - 1})` : ""}
-            </span>
-          </button>
-        )}
       </section>
       {editor && (
         <PromptEditor

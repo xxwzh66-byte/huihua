@@ -9,7 +9,7 @@ import {
 import { Fingerprint, LockKeyhole } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { native } from "./api";
-import { MochiMascot, StartupSplash } from "./MochiMascot";
+import { MochiMascot } from "./MochiMascot";
 
 type LockState = {
   delaySeconds?: number;
@@ -35,10 +35,9 @@ const lockChanged = "pocket-lock-changed";
 let authenticationActive = false;
 /**
  * v1.11 disables the biometric gate entirely: the security panel is gone from
- * the settings, so nothing can configure or release a lock. The splash screen
- * stays, and every state is coerced to "unlocked" so a phone that had enrolled
- * biometrics before the upgrade is never trapped behind a lock screen it can no
- * longer manage.
+ * the settings, so nothing can configure or release a lock. Every state is
+ * coerced to "unlocked" so a phone that had enrolled biometrics before the
+ * upgrade is never trapped behind a lock screen it can no longer manage.
  */
 const LOCK_ENFORCED = false;
 async function status() {
@@ -61,8 +60,6 @@ export function AppLock({ children }: { children: ReactNode }) {
   }, [language]);
   const [state, setState] = useState<LockState | null>(null);
   const [opened, setOpened] = useState(false);
-  const [launching, setLaunching] = useState(true);
-  const finishLaunch = useCallback(() => setLaunching(false), []);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -71,7 +68,7 @@ export function AppLock({ children }: { children: ReactNode }) {
     revision = useRef(0),
     mounted = useRef(true);
   const locked = !state || (state.enabled && !state.unlocked);
-  const shielded = locked || launching;
+  const shielded = locked;
 
   const apply = useCallback((value: LockState) => {
     if (!mounted.current) return;
@@ -142,12 +139,12 @@ export function AppLock({ children }: { children: ReactNode }) {
     if (shielded) {
       if (!dialog.current?.open) dialog.current?.showModal();
     } else dialog.current?.close();
-    if (first.current && state && !launching) {
+    if (first.current && state) {
       first.current = false;
       if (state.enabled && !state.unlocked && autoPromptEnabled())
         void unlock();
     }
-  }, [shielded, launching, state, unlock]);
+  }, [shielded, state, unlock]);
 
   return (
     <>
@@ -163,30 +160,22 @@ export function AppLock({ children }: { children: ReactNode }) {
         <dialog
           ref={dialog}
           className="lock-screen"
-          aria-label={
-            launching ? tr("Démarrage") : tr("Application verrouillée")
-          }
+          aria-label={tr("Application verrouillée")}
           onCancel={(e) => e.preventDefault()}
         >
-          {launching ? (
-            <StartupSplash onDone={finishLaunch} />
-          ) : (
-            <>
-              <MochiMascot />
-              <h1>{tr("绘画 est enfermé")}</h1>
-              <p>{tr("Libérez-le pour retrouver vos créations.")}</p>
-              <button
-                className="primary"
-                disabled={busy || !state}
-                onClick={() => void unlock()}
-              >
-                <Fingerprint size={21} />
-                {busy ? tr("Authentification…") : tr("Le libérer")}
-              </button>
-              {error && <p role="alert">{error}</p>}
-              <small>{tr("Biométrie ou code de verrouillage Android")}</small>
-            </>
-          )}
+          <MochiMascot />
+          <h1>{tr("绘画 est enfermé")}</h1>
+          <p>{tr("Libérez-le pour retrouver vos créations.")}</p>
+          <button
+            className="primary"
+            disabled={busy || !state}
+            onClick={() => void unlock()}
+          >
+            <Fingerprint size={21} />
+            {busy ? tr("Authentification…") : tr("Le libérer")}
+          </button>
+          {error && <p role="alert">{error}</p>}
+          <small>{tr("Biométrie ou code de verrouillage Android")}</small>
         </dialog>
       )}
     </>

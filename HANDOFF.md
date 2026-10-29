@@ -1,8 +1,9 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.1.3**，HEAD `961c3be`，分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.15.0**（versionCode `11500`），HEAD `d84ca2c`，分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
+> 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
 ---
 
@@ -21,7 +22,7 @@
 | 工坊 `create` | 导入 API 工作流 → 改参数 → 写提示词 → 实时预览 → 生成 |
 | 提示词 `prompt` | 独立页，接任意 OpenAI 兼容 API，一句描述直接出 Danbooru 标签，可复制 / 填入工坊 |
 | 图库 `gallery` | 服务器输出图，收藏、删除（本地隐藏）、批量下载 |
-| 术语表 `glossary` | Danbooru 词库 + 中英对照 |
+| 素材库 `glossary`（v1.15 改名，id 未变） | 服装 / 场景 / 姿势 / 表情四货架，标签来自 Comfyui-Anima-Wardrobe（8048 条，离线） |
 | 设置 `connect` | 服务器地址、生成 API、服务器资源、语言 / 外观 / 更新 |
 
 ---
@@ -33,7 +34,7 @@ cd D:\demo\Paint-v1
 npm install
 npm run dev                 # http://127.0.0.1:1420
 npx tsc -b                  # 类型检查（必须无输出）
-npx vitest run              # 12 文件 / 51 测试
+npx vitest run              # 12 文件 / 55 测试
 npx vite build              # 前端产物到 dist/
 ```
 
@@ -113,11 +114,13 @@ results / preview → #studio-render
 | `useGenerationSession.ts`（208 行） | 轮询队列与历史，产出 `queue/jobs/progress/phase/preview/results` |
 | `PageNavigation.ts`（220 行） | 页面滑动切换；`pages` 数组在这；`usePageNavigation()` 返回 `{tab,setTab,setInitialTab,handlers,trackRef}` |
 | `i18n.ts`（39 行） | `Locale = "fr" \| "en" \| "zh-CN"`，**默认 `zh-CN`**，key `mochi-language`；`t(source, values)` 替换 `{0}` |
-| `WorkflowCanvas.tsx`（533 行） | 竖向流水线卡片视图，字段就地编辑，占位符 chip → 绑定弹窗 |
-| `WorkflowShelf.tsx`（169 行） | 本地工作流库（保存 / 载入 / 删除 / 导出 JSON） |
+| `WorkflowCanvas.tsx`（约 470 行） | **v1.14 重写**：图标节点 + 贝塞尔连线，点节点才展开参数面板（`.canvas-detail`）；缩放条中间是「适应宽度」按钮 |
+| `WorkflowShelf.tsx` | 本地工作流库的 UI 外壳：`select.shelf-picker`（选择）+ 命名输入 + 保存/导出 + 弹窗列表。名称与 id 状态由 `App.tsx` 持有（`workflowName` / `workflowId`） |
+| `workflowGraph.ts` | `nodeFields` / `setField` / `coerceField` / `nodeTitle` + `layoutGraph`（v1.14 重新被画布调用，按 depth 分列输出 `nodes`/`edges`） |
 | `workflowLibrary.ts`（97 行） | 库的存储层，key `workflow-library-v1`，上限 60 |
-| `PromptSection.tsx`（107 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor` |
-| `PromptEditor.tsx` | 提示词编辑器（分块 / 权重 / 历史 / 翻译 / 助手） |
+| `PromptSection.tsx`（约 80 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor`；「打开素材库」按钮 |
+| `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
+| `Glossary.tsx`（约 250 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json` |
 | `PromptStudio.tsx`（459 行） | 独立「提示词」页 |
 | `InstructionEditor.tsx`（174 行） | 「注入模板可查看可修改」实体 |
 | `promptTemplates.ts`（271 行） | 模板 CRUD + skill 文件夹导入 + `defaultSystem()` |
@@ -178,8 +181,8 @@ restore / disconnect / connect_server / api / image / save_image
 | `settings` / `settings:<server>` | 工坊设置（`Settings`） | `useSettingsPersistence.ts`（300ms 防抖） |
 | `clientId` | ComfyUI client_id | `sessionStorage.ts` |
 | `mochi-language` | `fr` / `en` / `zh-CN` | `i18n.ts` |
-| `onboarding-done` / `onboarding-step` | 引导状态 | `App.tsx:108-124` |
-| `quick-menu` / `left-handed` | 界面偏好 | `App.tsx:141-146` |
+| `onboarding-done` / `onboarding-step` | **v1.15 起不再读写**（引导步骤已删，残值无副作用） | — |
+| `quick-menu` / `left-handed` / `auto-save` | 界面偏好 + **默认保存开关**（v1.14，默认 `true`） | `App.tsx:141-146` / `App.tsx` |
 | `gallery-columns` | 2/3/4 | `App.tsx:162` |
 | `favorites:<server>` / `removed:<server>` | 收藏 / 隐藏（**不是真删**） | `App.tsx:98-102` |
 | `results:<server>` / `seed:<server>` / `tasks:<server>` | 上次结果 / 种子 / 队列 | `App.tsx` |
@@ -189,11 +192,11 @@ restore / disconnect / connect_server / api / image / save_image
 | `prompt-default-system-v1` | 全局默认 system 指令 | `promptTemplates.ts` |
 | `prompt-studio-history-v1` | 提示词页历史（≤30） | `PromptStudio.tsx` |
 | `prompt-history-v1` / `prompt-blocks-v1` | 编辑器历史 / 可复用块 | `promptLibrary.ts` |
-| `mochi-voice-draft-v1` | 助手草稿 | `PromptAssistant.tsx` |
+| `mochi-voice-draft-v1` | 助手草稿（**v1.15 起无写入方**） | 原 `PromptAssistant.tsx` |
 | `mochi-update-auto` / `mochi-update-check` | 自动检查更新开关 / 上次检查时间 | `AppUpdater.tsx` |
 | `inference-presets-v1` | 预设 | `presetStore.ts` |
 | `model-favorites-v1` | 模型收藏（**读写方 `StudioModels.tsx` / `ModelPicker.tsx` 都已是死代码，实际不再写入**） | `StudioModels.tsx` / `ModelPicker.tsx` |
-| `autocomplete-enabled` / `biometric-auto-prompt` / `size-presets` | 杂项 | 各处 |
+| `autocomplete-enabled` / `biometric-auto-prompt` / `size-presets` | 杂项（`autocomplete-enabled` **v1.15 起无写方**） | 各处 |
 
 ---
 
@@ -275,7 +278,7 @@ $text.Contains("index-XXXXXXXX.js")   # 必须 True
 
 ### 6.1 bump 四个地方
 
-写一个 `_build/bump-<VER>.mjs`（照抄 `_build/bump-1.1.3.mjs`）：
+写一个 `_build/bump-<VER>.mjs`（照抄 `_build/bump-1.14.0.mjs`）：
 
 ```
 package.json                        "version": "X.Y.Z"
@@ -283,26 +286,27 @@ src-tauri/tauri.conf.json           "version": "X.Y.Z"
 src-tauri/Cargo.toml                version = "X.Y.Z"
 src-tauri/gen/android/app/tauri.properties
     tauri.android.versionName=X.Y.Z
-    tauri.android.versionCode=<10000 + minor*100 + patch>   # 1.1.3 → 10103
+    tauri.android.versionCode=<10000 + minor*100 + patch>   # 1.1.3 → 10103；1.14.0 → 11400
 ```
 
-versionCode 必须单调递增，否则 `AppUpdates.verify()` 会拒绝安装。
+versionCode 必须单调递增，否则 `AppUpdates.verify()` 会拒绝安装。注意 **1.14 走的是 minor=14**，所以 versionCode 是 `11400` 而不是 `10104`——规则里的 `minor` 是整段 minor 数字，不是它的个位数。
 
 ### 6.2 补 i18n 键
 
 ```powershell
 node _build\find-missing-strings.mjs      # 扫 src/*.ts(x) 的 t()/tr() 字面量，列出缺的键
-# 用 add-strings.mjs / add-v113-strings.mjs 的写法（表格 [source, zh, en]）补齐
-node _build\find-missing-strings.mjs      # 期望 missing 0
+# 用 add-strings.mjs / add-v113-strings.mjs / add-v114-strings.mjs 的写法（表格 [source, zh, en]）补齐
+node _build\v114-audit-strings.mjs         # 只核对某批 key 是否两个 locale 都有
+node _build\find-missing-strings.mjs       # 期望 missing 0
 ```
 
-`add-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。
+`add-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。v1.14 起两个 locale 各 **950 键**。
 
 ### 6.3 测试 + 构建
 
 ```powershell
 npx tsc -b          # 无输出
-npx vitest run      # 12 files / 51 tests
+npx vitest run      # 12 files / 55 tests
 npx vite build      # 记下 dist/assets/index-XXXX.js 和 .css 的 hash
 ```
 
@@ -348,17 +352,23 @@ node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 �
 
 `vitest.config.ts`：`include: ["src/**/*.test.ts"]`，`setupFiles: ["src/testLocale.ts"]`（把 locale 钉在 `fr`，所以断言里是法语串）。
 
-现有 12 个测试文件，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience`。
+现有 12 个测试文件 / **55 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience`。
 
 **没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptTemplates`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
 
-### 7.2 E2E（Playwright）——目前是坏的
+### 7.2 E2E（Playwright）——部分过期
 
-`playwright.config.ts`：`testDir: "tests"`，端口 `PAINT_TEST_PORT || 14420`，`webServer: npm run dev`，viewport 390×844。
+`playwright.config.ts`：`testDir: "tests"`，端口 `PAINT_TEST_PORT || 14420`，`webServer: npm run dev`（`reuseExistingServer: false`，**跑之前先杀掉占用 14420 的进程**），viewport 390×844。
 
-**`tests/app.spec.ts` 已全面过期**：25 处引用 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了。`catalog.spec.ts`(5) / `connections.spec.ts`(6) / `v14.spec.ts`(2) 也各自残留 bridge 引用。跑 `npm run test:e2e` 会红一片，属于已知状态，不是回归。
+**v1.14 新增并通过的**：`tests/v114.spec.ts`（4 用例）+ `tests/v114-harness.tsx`（内联 7 节点 fixture，KSampler 的 `sampler_name`/`scheduler` 故意留空）。覆盖：图标节点与 9 条连线、未选中时无参数面板、点节点才展开 6 个可编辑字段 + 4 条 `.node-link`、空 select 的占位 option、缩放按钮、工作流命名保存与覆盖保存。
 
-现在真正在用的验证方式是 `_build/` 下一堆手写 Playwright 脚本（`v113check.mjs` / `v113gen.mjs` / `instructioncheck.mjs` / `updatecheck.mjs` …）。它们的共同套路见第 8 节。
+**v1.15 新增并通过的**：`tests/v115.spec.ts`（4 用例）。覆盖：新装直落工坊且无引导步骤、导航第五项文案、素材库四货架 + 搜索 + 选中写进提示词、编辑器只剩文本/区块/翻译/权重（无语音入口、无补全开关、无联想气泡）、导入工作流不改原字段。
+
+**仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
+
+v1.14 顺手修好的：`tests/connections.spec.ts:218` 的启动用例，原来断言 `dialog[name="Démarrage"]` + `.startup-splash`，现改为断言开屏不存在、锁屏 dialog 直接出现。另 3 条 `connections.spec.ts` 用例仍因为依赖已删除的 profile API 而红。
+
+现在真正在用的验证方式是 `_build/` 下一堆手写 Playwright 脚本（`v114-shot.mjs` / `v114-debug.mjs` / `v113check.mjs` / `instructioncheck.mjs` …）。它们的共同套路见第 8 节。
 
 ---
 
@@ -392,11 +402,12 @@ await page.route("**/__native", async (route) => {
 
 ```js
 await page.addInitScript(() => {
-  localStorage.setItem("onboarding-done", "true");
   localStorage.setItem("mochi-language", "zh-CN");
+  // v1.15 起没有引导步骤了，onboarding-done 不再需要；想测「全新安装」直接
+  // localStorage.clear() 也一样落到工坊。
 });
 await page.goto(URL, { waitUntil: "domcontentloaded" });   // 不要 networkidle，轮询永不 idle
-await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启动闪屏
+await page.waitForTimeout(2500);                            // v1.14 起没有开屏动画，等首屏数据就够
 ```
 
 几个固定的坑：
@@ -419,10 +430,74 @@ await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启�
 | **纯白主题** | 只有一个 accent（`#1b1b1b` 黑），其余全是白 + 灰线 + 圆角卡片。不要引入彩色。 |
 | **删掉「自动模式」，工坊只留工作流** | v1.1.3 之前工坊有 `mode: "simple" \| "workflow"` 双轨：simple 走 `buildWorkflow()` 造图，workflow 走导入的 JSON。两套参数维护两份、用户也困惑。现在**只有工作流**，`SettingsPanel.tsx`（704 行）整份删除。占位符层接替了「自动参数」的职责。`buildWorkflow` 保留但无调用方。 |
 | **可视化画布从绝对定位改成竖向流水线** | 原方案是左右分栏 + 缩放拖拽，手机上节点挤成一团根本看不清。现在按依赖深度拓扑排序竖排卡片，一屏一个节点。`layoutGraph` 因此失去调用方。 |
+| **（v1.14 反悔）画布回到图标节点 + 连线** | 竖排卡片的问题是「一屏只有一两个节点，看不出拓扑」。v1.14 改成真正的图：`layoutGraph` 按 depth 分列、节点缩成 132×78 的图标块（loader/prompt/sample/latent/output 五种底色）、连线用贝塞尔 `<path>`、**参数收进「点选某节点才出现的面板」**。首次进入自动 `fitZoom` 到适应宽度（<0.6 时回落到 0.8，避免图标小到看不清），选中节点会把画布平滑滚到它。`flowOrder` 随之删除。 |
 | **占位符 `{{key}}` 而不是直接写值** | 让一份工作流能反复用不同参数。`autoBind` 在导入时改写节点，`resolveGraph` 在发送前替换。 |
 | **贴图用 base64 data URL** | `lib.rs` 的 `image` 命令把图读成 base64 返回前端。简单但有内存代价（`IMAGE_LIMIT = 64MB`），大图会卡。改进方向见第 11 节。 |
 | **Release 用 API 建，不打本地 tag** | github.com:443 在这台机器上经常被阻断，`git push` 反而要重试很多次；api.github.com 通畅。所以先用 API 建 release/打 tag ref，再单独重试 push 代码。 |
 | **隐藏「安全」板块** | 生物识别锁的 UI 入口从设置页摘掉（用户要求），`AppLock.tsx` 的组件与 Rust 侧命令都还在，`LockSettings` 仍可用，只是暂时没入口。 |
+
+---
+
+## 9.5 v1.14 变更清单（本轮迭代）
+
+一次集中改版，七件事，都已完成并通过 `tsc -b` / `vitest` / `vite build` / `tests/v114.spec.ts`。
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 设置新增「默认保存」 | `Connections.tsx` Application 分组 + `App.tsx` (`autoSave`/`autoSaveRef`) + `useGenerationSession.ts` (`persist`) | key `auto-save`，默认 `true`。开关在「Application → 默认保存」。`persist()` 逐个 `imageUrl` → `native("save_image", …)`，失败静默（相册权限、磁盘满都不该打断生成） |
+| 2 | 删开屏动画 | `MochiMascot.tsx` / `AppLock.tsx` / `mobile.css` | `StartupSplash` 整函数删除；`launching`/`finishLaunch`/`shielded = locked \|\| launching` 一并去掉；`.startup-splash`、`.startup-progress`、`@keyframes mochi-*` 全部清理 |
+| 3 | 删「继续设置」/「重新设置」 | `App.tsx`（原 `setupDone` + `setup-mobile-resume` 按钮）/ `Connections.tsx` | 两个重复入口都删。引导仍由 `setupOpen`（首次 `onboarding-done !== true`）驱动。**`paint-setup` 事件已无 dispatch 方**，监听留着 |
+| 4 | 删「自定义配置」 | `Presets.tsx` `.preset-current` | `<strong>` 从「JSON 深比较 → 否则显示 Configuration personnalisée」改成 `current?.name ?? tr("Choisir un preset")`，不再出现「自定义配置」字样 |
+| 5 | 可视化工作流重构 | `WorkflowCanvas.tsx`（重写）/ `workflow-canvas.css`（重写） | 图标节点 + 贝塞尔连线 + 点选参数面板。见第 9 节最后一条 |
+| 6 | 工坊工作流选择 + 命名 | `WorkflowShelf.tsx` / `workflow-shelf.css` / `App.tsx` | 新增 `select.shelf-picker` 下拉；命名输入受控于 `App.tsx` 的 `workflowName`；`.generate-bar` 左侧显示当前工作流名 |
+| 7 | 生图报错修复 | `workflow.ts` / `App.tsx` | 新增 `invalidChoices` / `sanitizeSettings`，`checkWorkflow` 增加 COMBO 值校验，`hydrate` / `reuse` / `generate` 三处调用 `sanitizeSettings` |
+| 8 | 出图说明文档 | `docs/生成图片指南.md` | 用户五步流程 + 报错对照表 + 生成链时序 + 硬约束 |
+
+**v1.14 修的那个报错**（用户实测）：
+
+```
+[ERROR] * KSampler 16:
+[ERROR]   - Value not in list: scheduler: '' not in ['simple', 'sgm_uniform', ...]
+[ERROR]   - Value not in list: sampler_name: '' not in (list of length 64)
+```
+
+根因是五条链路都能把空串写进 `settings`，而没人校验：`normalizeSettings` 只查 `typeof`（`""` 合法）→ `hydrate()` 只纠正 `model` 和 `sampler`，不碰 `scheduler` → `resolveGraph` 把 `""` 原样写进图 → `checkWorkflow` 只查缺节点和 `LatentUpscale.bicubic` → ComfyUI 只在服务端报 `prompt_outputs_failed_validation`，且**没有**定位信息。
+
+现在三层兜住：`sanitizeSettings`（连接/导入/生成前用 `/api/object_info` 的候选列表纠正，空值或不在列表 → 回落 `defaults` → 回落候选首项）、`invalidChoices`（`checkWorkflow` 里拦住任何非法 COMBO 值并给出 `KSampler 16.scheduler=（空）` 这种可读定位）、画布 select 对陈旧值额外渲染 `<option>{value} · 不可用</option>`。
+
+配套修了候选列表的解析：COMBO 在 `/api/object_info` 里有两种外形——新版本 `["COMBO", { options: [...] }]`，老版本 `[[...值], {...}]`。原来两处各自写着「`definition[0] === "COMBO"` 才读 options，否则把 `definition[0]` 当数组」，老式裸数组能过、另一种就成了空列表，而**空列表会让所有校验静默跳过**（`if (!allowed.length) continue`）。现在统一走 `src/api.ts` 的 `optionList(definition)`，`choices()` / `invalidChoices()` / `workflowGraph.ts` 的 `optionsOf()` 都用它。
+
+v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186 815 字节，versionCode `11400`，证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.3 同指纹，可直接覆盖升级）。发行说明草稿在 `_build/release-1.14.0.md`。
+
+**构建顺序有一个坑**：`cargo build`（不是 `tauri build`）不会跑 `beforeBuildCommand`，但 `build.rs` 仍会在**编译时**把 `../dist` 烘进 `.so`。所以必须 `npx vite build` → 再 `cargo_android.ps1`。顺序反了会打进旧前端（UI 看起来没变，或直接白屏）。跑 `node _build\v114-verify-apk.mjs` 可以自检：它读当前 `dist/assets` 的 `index-*.js|css` 哈希文件名，检查是否出现在 `libhuihua_lib.so` 里，不匹配就 `STALE` 退出。
+
+---
+
+## 9.6 v1.15 变更清单（本轮迭代）
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 导入工作流不再自动联动 | `App.tsx` `importFile()` | 删掉 `autoBind(w)`：导入只做 `parseWorkflow` + `checkWorkflow`，字段原样保留，提示改为「工作流已导入。」。「联动到自动设置」按钮（JSON 视图）仍保留，成为唯一的显式联动入口 |
+| 2 | 删进 APK 的引导步骤 | 删 `Onboarding.tsx` + `Onboarding.css`；`App.tsx` 删 `setupStep`/`setupOpen`/`paint-setup` 监听/`return <Onboarding …>` 分支 | 首次启动直接进工坊（无 server 则落设置页）。`Welcome.tsx` 保留（它只是「还没连服务器」的空态，不是步骤引导），但文案里的 Danbooru/术语表改成素材库 |
+| 3 | 修生图后卡死 | `useGenerationSession.ts` | 见下 |
+| 4 | 术语表 → 素材库 | `Glossary.tsx` 全量重写 + `src/data/wardrobe.json`（164 KB，新）+ 删 `src/data/glossary.json`；`App.tsx` 标题/副标题/导航 label；`PromptSection.tsx` 按钮；`experience.test.ts` 第 4 个用例 | 四货架：服装 17 组 558 套 5434 标签、场景 7 组 45 套 190、姿势 24 组 500 套 2219、表情 5 组 32 套 205。数据由 `D:\demo\_anima_build.mjs` 从 Comfyui-Anima-Wardrobe 的 `anima_presets.json` 生成（MIT，lingdongbudong） |
+| 5 | 提示词编辑器瘦身 | `PromptEditor.tsx` / `PromptTools.tsx` / `PromptSection.tsx`；删 `usePromptSuggestions.ts`、`tags.worker.ts`、`caret.ts`、`PromptAssistant.tsx` | 去掉语音助手入口与弹层、自动补全开关、Danbooru 联想气泡、`Vérifier`（检查）页与 `.prompt-conflict` 行。剩下：文本/区块分段、翻译、历史、可复用区块、权重、撤销重做 |
+| 6 | 版本 + i18n | `_build/bump-1.15.0.mjs` / `_build/add-v115-strings.mjs` | 1.15.0 / versionCode `11500`；locale 950 → **967** 键 |
+
+**「生图后卡死」的根因**（`src/useGenerationSession.ts`）：
+
+轮询 effect 的依赖数组里带着 `onOnline` 和 `onError`，而这两个是 `App.tsx` 里每次渲染都新建的内联箭头函数。于是**任何**一次 `setState`（进度、phase、preview、results…）都会让 effect 拆除再重建：`stopped` 翻 true → `clearTimeout` → 新 effect 里 `void poll()` 立刻再发一轮 `/api/queue` + `/api/history`。生成过程中本来每 1.5 s 一轮，这下变成「每次渲染一轮」，请求量随渲染次数平方级上涨，UI 线程被 promise 回调占满——表现就是出图后界面卡住不动。
+
+修法三条：
+1. `onOnline` / `onError` 存进 `onlineRef` / `errorRef`（每次渲染同步赋值），effect 依赖里去掉它们；
+2. 新增模块级 `busy` 锁：`poll()` 开头 `if (busy.current …) return`，`finally` 释放。被拆掉的旧循环若还有请求在飞，新循环不会叠上去；
+3. `savedImages` 集合去重，避免重叠轮询把同一张图重复交给 `persist()` 写两遍相册。
+
+**回归用例**：`tests/v115.spec.ts`（4 个，全绿）覆盖「新装首启无引导」「素材库四货架 + 选中写进提示词」「编辑器无语音/无补全/无气泡/两按钮」「导入不改字段」。
+
+**构建产物**：`dist-apk/huihua-1.15.0-arm64.apk`（75 204 351 字节，versionCode `11500`，SHA-256 `9b86385a6838c3f30a5fdde3c4bca9754ad58517cd7d0a76167f99aa4102554b`，签名证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.2 / 1.1.3 / 1.14.0 同指纹可覆盖升级）。发行说明在 `_build/release-1.15.0.md`。
+
+**v1.15 顺手做的 CSS 清理**（6 个文件，40 余行死规则）：`.suggestion-bubble` / `.suggestion-dock` / `.suggestion-heading` / `.tag-option` / `.tag-suggestions` / `.tag-dot` / `.category-*` / `.autocomplete-setting` / `.editor-hint` / `.voice-entry` / `.prompt-conflict` / `.prompt-issues` / `.prompt-check-description`。另外 `src/experience.css` 的 `.editor-paper textarea { padding-bottom: 175px }` 改回 `23px`（那 175px 原本是给联想气泡让位）。清理脚本：`_build/clean-v115-css*.mjs`（5 个，按行/按块两套手法）。
 
 ---
 
@@ -452,7 +527,7 @@ await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启�
 
 - **`LlmSettings` 的 mock 崩溃**：`llmGet().then(data => data.base_url.trim())` 在 `data = {}` 时抛 `Cannot read properties of undefined (reading 'trim')`，React 整个树崩掉 → 整页白屏。已修成 `String(data?.base_url ?? "")`，别改回去。
 - **`AppLock` 的锁屏假白屏**：没有 mock `lock_status` 时渲染 `<dialog class="lock-screen">`，body 是空的，看起来就是白屏。
-- **启动闪屏 ~2.6s**，截图/断言前要等。
+- ~~**启动闪屏 ~2.6s**，截图/断言前要等。~~ **v1.14 已删除开屏动画**（`StartupSplash` 连同 `AppLock` 的 `launching` 状态一起删掉），现在冷启动直接进锁屏或主界面，截图脚本里的 `waitForTimeout(4000)` 可以缩短。
 - `waitUntil: "networkidle"` 在这个应用里永不返回（队列轮询）。
 - React StrictMode 双挂载，`useEffect` 里的原生调用会跑两次。
 
@@ -471,8 +546,7 @@ await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启�
 ### P1 — 质量
 
 3. **缩略图是假的**。`src/Picture.tsx:26` 给路径加 `?thumb=1`，但 ComfyUI `/api/view` 不认这个参数，返回的还是原图。图库几十张图会吃满内存。真解法是本地生成缩略图（Android 侧 `BitmapFactory` + `inSampleSize`，或前端 `createImageBitmap` + canvas 缩到 256px）。
-4. **两个 AI 提示词入口并存**。`PromptStudio.tsx`（459 行，独立页）和 `PromptAssistant.tsx`（522 行，`PromptEditor` 里的弹窗，`PromptEditor.tsx:5/578` 仍在用）。逻辑大量重复。
-   → 方向：把 `PromptAssistant` 砍成薄壳，复用 `PromptStudio` 的生成/复制逻辑，或干脆让 `PromptEditor` 的入口直接跳提示词页。
+4. **AI 提示词入口只剩一个**。v1.15 删掉 `PromptAssistant.tsx`（语音助手弹层）后，只有 `PromptStudio.tsx`（459 行，独立「提示词」页）走 LLM。补齐方向：让工坊的「用 API 生成提示词」按钮直接跳过去（现在已经是 `onGenerate → setTab("prompt")`）。
 5. **`autoBind` 靠 class_type 正则猜，很脆**。不认识 `CLIPTextEncodeSDXL`（双 `text_g`/`text_l`）、`T5TextEncode`、`FluxGuidance`、`ConditioningCombine`；`positiveDone` 只写第一个正向 encode，多正向节点的工作流会漏。
    → 方向：改走「沿 KSampler 的 `positive`/`negative` link 反向遍历」确定真正的条件节点，而不是靠类名。
 6. **删除只是隐藏**。`App.tsx:172` 的 `removed` 是 localStorage Set，图片还在服务器上。UI 上写的是「récupérable」，但没有任何真删接口（ComfyUI 也没有标准删图 API，得自己加）。
@@ -488,10 +562,11 @@ await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启�
    | `src/StudioModels.tsx` | **完全孤儿**——v1.1.3 删 `SettingsPanel` 后没有任何文件 import 它（它内部还调 `/bridge/model-info`、`/bridge/model-favorites`，那些接口在 v1.0 就没了，是纯死代码 + 死接口） |
    | `src/ModelPicker.tsx` | 只被 `src/components.tsx` 桶文件 re-export，`<ModelPicker>` 全项目 0 处渲染 |
    | `src/workflow.ts` 的 `buildWorkflow` | 只剩定义 + 单测，产品代码无调用方 |
-   | `src/workflowGraph.ts` 的 `layoutGraph` | 只有定义，无调用方 |
-   | `src/PromptAssistant.tsx` | 只被 `src/PromptEditor.tsx:5` 引用（522 行，与 `PromptStudio` 大量重复） |
+   | `src/workflowGraph.ts` 的 `layoutGraph` | **不是孤儿**：`WorkflowCanvas.tsx:124` 用它算节点坐标（`WorkflowCanvas.tsx:23` import） |
+   | ~~`src/PromptAssistant.tsx`~~ | v1.15 已删 |
+   | ~~`src/usePromptSuggestions.ts`~~ / ~~`src/tags.worker.ts`~~ / ~~`src/caret.ts`~~ | v1.15 已删（Danbooru 联想整条链） |
 
-   注意 `src/tags.worker.ts` 被 `new Worker(new URL(...))` 动态加载、`src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这三个不算孤儿，别删。
+   注意 `src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这两个不算孤儿，别删。`src/data/booru.tsv.gz`（234 011 行离线索引）在 v1.15 后**已无运行时引用**，只有 `experience.test.ts` 还在断言它的行数；要不要留看是否还想要标签自动补全。
 10. 图片走 base64 data URL，大图吃内存；可以改成 `native` 返回本地临时文件路径 + `convertFileSrc`。
 11. `Settings.hires` / `Settings.upscale` / `Settings.loras` 在 v1.1.3 后没有 UI 入口（随 `SettingsPanel` 一起删了），只有 `{{key}}` 占位符能碰到 `clip_skip`，LoRA 完全碰不到。要做 LoRA 支持得先在设计上想清楚它和工作流节点的关系。
 
@@ -559,5 +634,5 @@ await page.waitForTimeout(4000);                            // 跳过 ~2.6s 启�
 - [ ] `_build/huihua-release.jks` 存在且密码 `huihua2026` / alias `huihua`（丢了就再也无法覆盖升级）
 - [ ] `git credential fill` 能拿到 PAT（40 字符，用户 `xxwzh66-byte`）
 - [ ] `D:\demo\toolchain` 和 `D:\demo\android-sdk` 完整
-- [ ] `npx tsc -b` 无输出、`npx vitest run` 51/51 通过
+- [ ] `npx tsc -b` 无输出、`npx vitest run` 55/55 通过
 - [ ] `git status` 干净，HEAD 与 GitHub `main` 一致（`node -e` 查 `/repos/.../commits/main` 比 `git ls-remote` 可靠）

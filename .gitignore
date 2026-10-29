@@ -12,6 +12,11 @@ src-tauri/pocket-plugin/android/build/
 dist-apk/
 _build/so_check/
 *.tsbuildinfo
+test-results/
+playwright-report/
+_build/*.png
+_build/apkcheck*
+_build/cssbak/
 
 # Editor / OS
 .DS_Store

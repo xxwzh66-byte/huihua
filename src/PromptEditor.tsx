@@ -2,64 +2,28 @@ import TagWeight from "./TagWeight";
 import { weightRange, setTagWeight, type WeightedRange } from "./promptWeights";
 import "./prompt-blocks.css";
 import PromptBoard from "./PromptBoard";
-import PromptAssistant from "./PromptAssistant";
 import { compilePrompt } from "./promptDocument";
-import { t as tr, locale } from "./i18n";
+import { t as tr } from "./i18n";
 import PromptTranslation, { insertTranslation } from "./PromptTranslation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  Check,
-  Undo2,
-  Redo2,
-  Sparkles,
-  Languages,
-  Mic,
-  SlidersHorizontal,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Undo2, Redo2, Languages, SlidersHorizontal } from "lucide-react";
 import { Modal } from "./components";
-import { insertTag, tagRange, type Tag } from "./tags";
 import PromptTools from "./PromptTools";
 import {
   rememberPrompt,
   promptStorageError,
   type Prompts,
 } from "./promptLibrary";
-import { createCaretMeasurer } from "./caret";
-import { usePromptSuggestions } from "./usePromptSuggestions";
 import "./prompt-experience.css";
 
 type Side = keyof Prompts;
 const sides: Side[] = ["positive", "negative"];
-const categories: Record<number, string> = {
-  0: "Général",
-  1: "Artiste",
-  3: "Univers",
-  4: "Personnage",
-  5: "Méta",
-};
 
-function readAutocompletePreference() {
-  try {
-    return localStorage.getItem("autocomplete-enabled") !== "false";
-  } catch {
-    return true;
-  }
-}
-
-function MatchingTag({ name, query }: { name: string; query: string }) {
-  const at = name.indexOf(query);
-  const visible = name.replace(/_/g, " ");
-  return at < 0 ? (
-    visible
-  ) : (
-    <>
-      {visible.slice(0, at)}
-      <mark>{visible.slice(at, at + query.length)}</mark>
-      {visible.slice(at + query.length)}
-    </>
-  );
-}
-
+/**
+ * v1.15 prompt editor: text or blocks, translation, weights, history and
+ * reusable blocks. The offline Danbooru suggestion bubble, its autocomplete
+ * switch and the voice assistant are gone — they only added chrome on a phone.
+ */
 export default function PromptEditor({
   initialTab,
   initialTool,
@@ -70,7 +34,7 @@ export default function PromptEditor({
 }: {
   initialTab: Side;
   fragmentTitle?: string;
-  initialTool?: "history" | "blocks" | "check";
+  initialTool?: "history" | "blocks";
   values: Prompts;
   onChange: (values: Prompts) => void;
   onClose: () => void;
@@ -84,7 +48,6 @@ export default function PromptEditor({
     undefined,
   );
   const weightSelection = useRef({ start: 0, end: 0 });
-  const [assistant, setAssistant] = useState(false);
   const anchor = useRef<HTMLDivElement>(null);
   const [translation, setTranslation] = useState<
     { start: number; end: number } | null | undefined
@@ -94,64 +57,14 @@ export default function PromptEditor({
   );
   const [side, setSide] = useState(initialTab);
   const [caret, setCaret] = useState(values[initialTab].length);
-  const [active, setActive] = useState(0);
-  const [composing, setComposing] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [enabled, setEnabled] = useState(readAutocompletePreference);
   const [saveError, setSaveError] = useState("");
-  const [preferenceWarning, setPreferenceWarning] = useState("");
-  const [bubbleTop, setBubbleTop] = useState(60);
-  const [scroll, setScroll] = useState(0);
   const input = useRef<HTMLTextAreaElement>(null);
-  const bubble = useRef<HTMLDivElement>(null);
-  const measurer = useRef<ReturnType<typeof createCaretMeasurer> | null>(null);
   const history = useRef<{ undo: Prompts[]; redo: Prompts[] }>({
     undo: [],
     redo: [],
   });
   const value = values[side];
-  const comment = /^\s*#/.test(
-    value.slice(value.lastIndexOf("\n", Math.max(0, caret - 1)) + 1, caret),
-  );
-  const query =
-    layout === "text" && !comment ? tagRange(value, caret).query : "";
-  const bubbleVisible = enabled && !dismissed && !!query;
-  const { tags, count, pending, error, retry } = usePromptSuggestions(
-    dismissed ? "" : query,
-    enabled && layout === "text",
-    composing,
-  );
 
-  const placeBubble = () => {
-    const field = input.current,
-      position = measurer.current;
-    if (!field || !position || !bubbleVisible) return;
-    let top = position.measure(caret) + 8;
-    const available = field.clientHeight - 72;
-    if (top > available) {
-      field.scrollTop += top - Math.max(38, available);
-      top = position.measure(caret) + 8;
-    }
-    setBubbleTop(Math.max(0, top));
-  };
-  useLayoutEffect(() => {
-    if (!input.current) return;
-    const position = createCaretMeasurer(input.current);
-    measurer.current = position;
-    return () => {
-      position.dispose();
-      measurer.current = null;
-    };
-  }, [layout]);
-  useLayoutEffect(placeBubble, [caret, value, bubbleVisible, scroll]);
-  useEffect(() => {
-    const observer = new ResizeObserver(() => {
-      measurer.current?.resize();
-      placeBubble();
-    });
-    if (input.current) observer.observe(input.current);
-    return () => observer.disconnect();
-  }, [caret, bubbleVisible]);
   useEffect(() => {
     const viewport = window.visualViewport,
       dialog = anchor.current?.closest("dialog");
@@ -181,24 +94,6 @@ export default function PromptEditor({
     input.current?.focus();
     input.current?.setSelectionRange(caret, caret);
   }, [side, layout]);
-  useEffect(() => {
-    setActive(0);
-  }, [tags]);
-  useEffect(() => {
-    if (!bubbleVisible || pending) return;
-    const option = bubble.current?.querySelector<HTMLElement>(`#tag-${active}`);
-    if (!option || !bubble.current) return;
-    // Scroll only the suggestions, never the textarea or the entire modal.
-    if (option.offsetTop < bubble.current.scrollTop)
-      bubble.current.scrollTop = option.offsetTop;
-    else if (
-      option.offsetTop + option.offsetHeight >
-      bubble.current.scrollTop + bubble.current.clientHeight
-    ) {
-      bubble.current.scrollTop =
-        option.offsetTop + option.offsetHeight - bubble.current.clientHeight;
-    }
-  }, [active, bubbleVisible, pending]);
 
   function focusAt(position: number) {
     setCaret(position);
@@ -214,21 +109,13 @@ export default function PromptEditor({
     if (history.current.undo.length > 80) history.current.undo.shift();
     history.current.redo = [];
     onChange(next);
-    setDismissed(false);
     setSaveError("");
-  }
-  function select(tag: Tag) {
-    if (pending || composing) return;
-    const next = insertTag(value, caret, tag.name);
-    update({ ...values, [side]: next.text });
-    focusAt(next.caret);
   }
   function travel(direction: "undo" | "redo") {
     const next = history.current[direction].pop();
     if (!next) return;
     history.current[direction === "undo" ? "redo" : "undo"].push({ ...values });
     onChange(next);
-    setDismissed(false);
     focusAt(next[side].length);
   }
   function finish() {
@@ -242,20 +129,6 @@ export default function PromptEditor({
   function changeSide(next: Side) {
     setSide(next);
     setCaret(values[next].length);
-    setDismissed(false);
-  }
-  function toggleAutocomplete(checked: boolean) {
-    setEnabled(checked);
-    setPreferenceWarning("");
-    try {
-      localStorage.setItem("autocomplete-enabled", String(checked));
-    } catch {
-      setPreferenceWarning(
-        tr(
-          "Ce choix s’applique pour cette session ; il n’a pas pu être enregistré.",
-        ),
-      );
-    }
   }
 
   return (
@@ -265,45 +138,23 @@ export default function PromptEditor({
       onClose={finish}
     >
       <div ref={anchor} />
-      {
+      {!fragmentTitle && (
         <div className="editor-mode-bar">
-          {!fragmentTitle && (
-            <div role="group" aria-label={tr("Affichage du prompt")}>
-              <button
-                aria-pressed={layout === "text"}
-                onClick={() => setLayout("text")}
-              >
-                {tr("Texte")}
-              </button>
-              <button
-                aria-pressed={layout === "blocks"}
-                onClick={() => setLayout("blocks")}
-              >
-                {tr("Blocs")}
-              </button>
-            </div>
-          )}
-          <button
-            className="voice-entry"
-            aria-label={tr("Assistant vocal")}
-            onClick={() => setAssistant(true)}
-          >
-            <Mic size={18} />
-            <span>{tr("Assistant vocal")}</span>
-          </button>
+          <div role="group" aria-label={tr("Affichage du prompt")}>
+            <button
+              aria-pressed={layout === "text"}
+              onClick={() => setLayout("text")}
+            >
+              {tr("Texte")}
+            </button>
+            <button
+              aria-pressed={layout === "blocks"}
+              onClick={() => setLayout("blocks")}
+            >
+              {tr("Blocs")}
+            </button>
+          </div>
         </div>
-      }
-      {layout === "text" && (
-        <label className="autocomplete-setting">
-          <span>{tr("Autocomplétion")}</span>
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label={tr("Activer l’autocomplétion")}
-            checked={enabled}
-            onChange={(event) => toggleAutocomplete(event.target.checked)}
-          />
-        </label>
       )}
       {layout === "text" && (
         <button
@@ -398,7 +249,6 @@ export default function PromptEditor({
       ) : (
         <div
           className="editor-paper"
-          data-suggesting={bubbleVisible}
           role={fragmentTitle ? "group" : "tabpanel"}
           id={fragmentTitle ? "prompt-panel-fragment" : "prompt-panel"}
           aria-labelledby={fragmentTitle ? undefined : `tab-${side}`}
@@ -418,13 +268,6 @@ export default function PromptEditor({
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            aria-autocomplete={enabled ? "list" : "none"}
-            aria-controls={enabled ? "tag-suggestions" : undefined}
-            aria-activedescendant={
-              bubbleVisible && tags[active] && !pending
-                ? `tag-${active}`
-                : undefined
-            }
             placeholder={
               side === "positive"
                 ? tr(
@@ -432,13 +275,10 @@ export default function PromptEditor({
                   )
                 : tr("Décrivez les éléments que vous souhaitez éviter…")
             }
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
             onChange={(event) => {
               update({ ...values, [side]: event.target.value });
               setCaret(event.target.selectionStart);
             }}
-            onScroll={(event) => setScroll(event.currentTarget.scrollTop)}
             onSelect={(event) => {
               setCaret(event.currentTarget.selectionStart);
               weightSelection.current = {
@@ -447,7 +287,6 @@ export default function PromptEditor({
               };
             }}
             onKeyDown={(event) => {
-              if (composing || event.nativeEvent.isComposing) return;
               if (
                 (event.ctrlKey || event.metaKey) &&
                 ["z", "y"].includes(event.key.toLowerCase())
@@ -458,136 +297,10 @@ export default function PromptEditor({
                     ? "redo"
                     : "undo",
                 );
-                return;
-              }
-              if (event.key === "Escape" && bubbleVisible) {
-                event.preventDefault();
-                event.stopPropagation();
-                setDismissed(true);
-                return;
-              }
-              if (!bubbleVisible || pending || !tags.length) return;
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault();
-                setActive(
-                  (index) =>
-                    (index +
-                      (event.key === "ArrowDown" ? 1 : tags.length - 1)) %
-                    tags.length,
-                );
-              }
-              if (
-                (event.key === "Enter" && !event.shiftKey) ||
-                event.key === "Tab"
-              ) {
-                event.preventDefault();
-                select(tags[active]);
               }
             }}
           />
-          <div
-            ref={bubble}
-            tabIndex={0}
-            hidden={!bubbleVisible}
-            className="suggestion-bubble"
-            aria-busy={pending}
-            style={{
-              top: bubbleTop,
-              maxHeight: `min(200px, calc(100% - ${bubbleTop}px))`,
-            }}
-          >
-            <div className="suggestion-heading">
-              <span>
-                <Sparkles size={14} /> Danbooru
-              </span>
-              <small>
-                {error
-                  ? tr("Saisie libre")
-                  : count
-                    ? tr("{0} tags · hors ligne", [
-                        count.toLocaleString(locale()),
-                      ])
-                    : tr("Préparation des tags…")}
-              </small>
-            </div>
-            <div
-              role="listbox"
-              id="tag-suggestions"
-              aria-label={tr("Suggestions de tags")}
-              className="tag-suggestions"
-            >
-              {tags.map((tag, index) => (
-                <div
-                  role="option"
-                  id={`tag-${index}`}
-                  key={tag.name}
-                  aria-selected={active === index}
-                  aria-disabled={pending}
-                  className={`tag-option ${active === index ? "highlighted" : ""}`}
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() => select(tag)}
-                >
-                  <span className={`tag-dot category-${tag.category}`} />
-                  <span>
-                    <strong>
-                      <MatchingTag name={tag.name} query={query} />
-                    </strong>
-                    <small>
-                      {tr(categories[tag.category] ?? "Tag")} ·{" "}
-                      {tag.count.toLocaleString(locale())}
-                    </small>
-                  </span>
-                  <span className="tag-add" aria-hidden="true">
-                    +
-                  </span>
-                </div>
-              ))}
-              {!tags.length && (
-                <span className="suggestion-empty">
-                  {error
-                    ? tr("Suggestions indisponibles")
-                    : pending
-                      ? tr("Recherche de tags…")
-                      : tr("Aucun tag correspondant")}
-                </span>
-              )}
-            </div>
-            {error && (
-              <button className="suggestion-retry" onClick={retry}>
-                {" "}
-                {tr("Réessayer les suggestions")}{" "}
-              </button>
-            )}
-          </div>
         </div>
-      )}
-      {layout === "text" && (
-        <p className="editor-hint" role="status">
-          {preferenceWarning ||
-            (!enabled
-              ? tr("Autocomplétion désactivée")
-              : error ||
-                (count
-                  ? tr("{0} tags · suggestions hors ligne", [
-                      count.toLocaleString(locale()),
-                    ])
-                  : tr("Préparation des suggestions…")))}
-        </p>
-      )}
-      {assistant && (
-        <PromptAssistant
-          side={side}
-          values={values}
-          onChange={(next) => {
-            update(
-              fragmentTitle
-                ? { ...values, [side]: compilePrompt(next[side]) }
-                : next,
-            );
-            if (!fragmentTitle) setLayout("blocks");
-          }}
-          onClose={() => setAssistant(false)}
-        />
       )}
       {saveError && (
         <div className="editor-save-error" role="alert">
