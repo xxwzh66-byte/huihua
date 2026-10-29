@@ -1,0 +1,11 @@
+plugins { id("com.android.library"); id("org.jetbrains.kotlin.android") }
+android {
+ namespace = "fr.azk.pocket"
+ compileSdk = 36
+ defaultConfig { minSdk = 29 }
+ compileOptions { sourceCompatibility = JavaVersion.VERSION_1_8; targetCompatibility = JavaVersion.VERSION_1_8 }
+ kotlinOptions { jvmTarget = "1.8" }
+}
+dependencies {
+    implementation("com.google.mlkit:translate:17.0.3")
+    implementation(project(":tauri-android")); implementation("androidx.biometric:biometric:1.1.0") }

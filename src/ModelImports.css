@@ -1,0 +1,152 @@
+.model-imports {
+  background: var(--surface, #fafafa);
+}
+.model-imports.full-page-dialog {
+  width: 100%;
+  max-width: 720px;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  border-radius: 0;
+  padding: max(20px, env(safe-area-inset-top)) 20px
+    max(24px, env(safe-area-inset-bottom));
+}
+.model-imports .modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fafafa;
+  padding-bottom: 16px;
+}
+.import-content,
+.import-content form,
+.import-plan {
+  display: grid;
+  gap: 20px;
+}
+.import-content label {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.import-content input,
+.import-content select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.import-content details {
+  padding: 16px;
+  background: #f0f0f0;
+  border-radius: 18px;
+}
+.import-content details[open] summary {
+  margin-bottom: 16px;
+}
+.import-content small {
+  color: #676767;
+  line-height: 1.5;
+}
+.import-content h3,
+.import-content p {
+  margin: 0;
+}
+.import-plan {
+  padding: 20px;
+  background: #ededed;
+  border-radius: 24px;
+}
+.import-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.import-heading strong {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.import-heading button {
+  flex-shrink: 0;
+}
+.import-history {
+  display: grid;
+  gap: 16px;
+}
+.import-job {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 4px 18px #50505009;
+}
+.import-job progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #7e7e7e;
+}
+.import-error {
+  color: #a02745;
+  overflow-wrap: anywhere;
+}
+.import-entry {
+  margin: 16px 0 24px;
+  width: 100%;
+  justify-content: center;
+}
+
+.import-tabs {
+  display: flex;
+  gap: 12px;
+}
+.import-tabs button {
+  flex: 1;
+}
+.import-tabs [aria-pressed="true"] {
+  background: #e6e6e6;
+  color: #666666;
+}
+.civitai-browser {
+  display: grid;
+  gap: 24px;
+}
+.civitai-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.civitai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 20px;
+}
+.civitai-card {
+  overflow: hidden;
+  background: #f0f0f0;
+  border-radius: 22px;
+  min-width: 0;
+}
+.civitai-card .picture {
+  width: 100%;
+  aspect-ratio: 4/3;
+}
+.civitai-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.civitai-card-body {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.civitai-card strong {
+  overflow-wrap: anywhere;
+}
+.compatibility-filter {
+  padding: 16px;
+  border-radius: 20px;
+  background: #f0f0f0;
+  margin: 12px 0;
+}

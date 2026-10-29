@@ -1,0 +1,1076 @@
+import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { readFileSync } from "node:fs";
+const cert = { url: "https://192.168.1.8:8189", token: "test-key".repeat(8), certificate: "TEST CERTIFICATE" };
+const info = {
+  CheckpointLoaderSimple: { input: { required: { ckpt_name: [["dreamshaper_8.safetensors", "landscape.safetensors"]] } } },
+  KSampler: { input: { required: { sampler_name: [["euler", "euler_ancestral"]], scheduler: [["normal", "karras"]] } } },
+  LoraLoader: { input: { required: { lora_name: [["film.safetensors"]] } } },
+  LatentUpscale: { input: { required: { upscale_method: [["nearest-exact", "bislerp"]] } } },
+  ImageScaleBy: { input: { required: { upscale_method: [["nearest-exact", "lanczos"]] } } },
+  VAELoader: { input: { required: { vae_name: [["test.vae.safetensors"]] } } },
+  UpscaleModelLoader: { input: { required: { model_name: ["COMBO", { options: ["4x-UltraSharp.pth", "4x-UltraMix_Balanced.pth"] }] } } },
+  ImageUpscaleWithModel: {}, ImageScale: {},
+  CLIPSetLastLayer: {}, CLIPTextEncode: {}, EmptyLatentImage: {}, VAEDecode: {}, SaveImage: {},
+};
+const png = "data:image/png;base64," + readFileSync("tests/fixtures/parameters.png").toString("base64");
+
+test("v10 language picker translates screens without changing prompt data", async ({ page }) => {
+  await connect(page); await prompt(page, "sun, lake, Français");
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).click();
+  await page.getByRole("button", { name: /Langue de l’application/ }).click();
+  await page.getByRole("radio", { name: "English" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "My computers" })).toBeVisible();
+  await page.getByRole("button", { name: "Studio", exact: true }).click();
+  await page.getByRole("button", { name: "Your idea", exact: true }).click();
+  await expect(page.getByLabel("Positive prompt", { exact: true })).toHaveValue("sun, lake, Français");
+  await expect(page.getByRole("button", { name: "Translate words", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  if(await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).count()) await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).click();
+  await page.getByRole("button", { name: /App language/ }).click();
+  await page.screenshot({ path: "../verification/v0.10.0/languages.png" });
+  await page.getByRole("radio", { name: "Français" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Mes ordinateurs" })).toBeVisible();
+});
+
+test("v10 pastel pickers, spaced actions, contained switches and border-only selection", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  const picker = page.getByRole("dialog");
+  expect(await picker.evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(250, 248, 252)");
+  const heart = await picker.locator(".model-star").boundingBox(), detail = await picker.locator(".lora-detail-button").boundingBox();
+  expect(detail!.y).toBeGreaterThan(heart!.y + heart!.height + 5);
+  await page.screenshot({ path: "../verification/v0.10.0/lora-picker.png" });
+  await page.getByRole("button", { name: "Fiche film", exact: true }).click();
+  const actions = page.locator(".lora-details .dialog-actions button");
+  await expect(actions).toHaveCount(2);
+  const boxes = await actions.evaluateAll(els => els.map(el => el.getBoundingClientRect().toJSON()));
+  expect(boxes[1].y > boxes[0].y ? boxes[1].y - boxes[0].bottom : boxes[1].x - boxes[0].right).toBeGreaterThanOrEqual(12);
+  await page.screenshot({ path: "../verification/v0.10.0/lora-details.png" });
+  await page.getByRole("button", { name: "Ajouter ce LoRA", exact: true }).click();
+  const toggle = page.getByRole("switch", { name: "Activer film", exact: true });
+  const geometry = await toggle.evaluate(el => { const a=getComputedStyle(el), b=getComputedStyle(el,"::after"); return { width:parseFloat(a.width),height:parseFloat(a.height),left:parseFloat(b.left),top:parseFloat(b.top),thumb:parseFloat(b.width),move:new DOMMatrixReadOnly(b.transform).m41 }; });
+  expect(geometry.left+geometry.thumb+geometry.move).toBeLessThanOrEqual(geometry.width-2);
+  expect(geometry.top+geometry.thumb).toBeLessThanOrEqual(geometry.height-2);
+  await toggle.uncheck(); await toggle.check();
+  await page.getByRole("button", { name: "Formats et dimensions", exact: true }).click();
+  await page.getByText("Mes formats personnalisés", { exact: true }).click();
+  await page.getByRole("button", { name: "Mémoriser ce format", exact: true }).click();
+  const gap = await page.locator(".save-format").evaluate(el => el.getBoundingClientRect().top - el.previousElementSibling!.getBoundingClientRect().bottom);
+  expect(gap).toBeGreaterThanOrEqual(16);
+  await page.screenshot({ path: "../verification/v0.10.0/custom-formats.png" });
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Sélectionner", exact: true }).click();
+  await page.getByRole("button", { name: "Sélectionner lake.png", exact: true }).click();
+  await expect(page.locator(".selection-check")).toHaveCount(0);
+  await expect(page.locator(".gallery-card.is-selected")).toHaveCount(1);
+  await page.screenshot({ path: "../verification/v0.10.0/gallery-selection.png" });
+});
+
+test("v10 translation inserts at caret and can append after focus leaves editor", async ({ page }) => {
+  await connect(page); await prompt(page, "sea, beach");
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  const input = page.getByLabel("Prompt positif", { exact: true });
+  await input.evaluate((el: HTMLTextAreaElement) => { el.focus(); el.setSelectionRange(5, 5); });
+  await page.getByRole("button", { name: "Traduire des mots", exact: true }).click();
+  await page.getByLabel("Texte à traduire").fill("ciel bleu");
+  await page.getByRole("button", { name: "Traduire", exact: true }).click();
+  await expect(page.getByLabel("Traduction", { exact: true })).toHaveValue("blue sky");
+  await page.getByRole("button", { name: "Insérer dans le prompt" }).click();
+  await expect(input).toHaveValue("sea, blue sky beach");
+  await page.getByRole("button", { name: "Annuler la dernière modification" }).click();
+  await expect(input).toHaveValue("sea, beach");
+  await page.getByRole("switch", { name: "Activer l’autocomplétion" }).click();
+  await page.getByRole("button", { name: "Traduire des mots", exact: true }).click();
+  await page.getByLabel("Texte à traduire").fill("ciel bleu");
+  await page.getByRole("button", { name: "Traduire", exact: true }).click();
+  await page.getByRole("button", { name: "Insérer dans le prompt" }).click();
+  await expect(input).toHaveValue("sea, beach blue sky");
+});
+
+test("v10 quick generation scrolls to results and supports hide favorite trash", async ({ page }) => {
+  await connect(page); await prompt(page, "sky");
+  await page.getByRole("button", { name: "Générer depuis le menu rapide" }).click();
+  await expect(page.getByRole("button", { name: "Masquer ce résultat" })).toBeVisible();
+  await page.waitForTimeout(600);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight - scrollY)).toBeLessThan(150);
+  await page.getByRole("button", { name: "Favori du résultat" }).click();
+  await expect(page.getByRole("button", { name: "Favori du résultat" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Masquer ce résultat" }).click();
+  await expect(page.getByRole("button", { name: "Masquer ce résultat" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Générer depuis le menu rapide" }).click();
+  await page.getByRole("button", { name: "Supprimer ce résultat" }).click();
+  await expect(page.getByRole("button", { name: "Supprimer ce résultat" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).click();
+  await page.getByRole("switch", { name: "Menu rapide de l’Atelier" }).uncheck();
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.locator(".studio-quick-nav")).toHaveCount(0);
+  expect(await page.locator(".studio-section-heading").first().evaluate(el => getComputedStyle(el).paddingRight)).toBe("0px");
+});
+
+test("v5 prompt history blocks and conflict checker work together", async ({ page }) => {
+  await connect(page); await prompt(page, "sun, lake");
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await page.getByRole("tab", { name: /Négatif/ }).click();
+  await page.getByRole("textbox", { name: "Prompt négatif", exact: true }).fill("sun");
+  await page.getByRole("button", { name: /Vérifier/ }).click();
+  await expect(page.getByRole("dialog", { name: "Vérifier les prompts" }).getByText("« sun » apparaît dans le positif et le négatif.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Écrire votre image" })).toBeVisible();
+  await page.getByRole("button", { name: "Bibliothèque", exact: true }).click();
+  await page.getByRole("button", { name: "Nouveau bloc" }).click();
+  const edit = page.getByRole("dialog", { name: "Éditer le bloc" });
+  await edit.getByLabel("Titre", { exact: true }).fill("Lumière");
+  await edit.getByRole("textbox", { name: "Positif", exact: true }).fill("soft_light");
+  await edit.getByRole("textbox", { name: "Négatif", exact: true }).fill("");
+  await edit.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.getByRole("button", { name: "Insérer", exact: true }).click();
+  await page.getByRole("tab", { name: /Positif/ }).click();
+  await page.getByRole("button", {name:"Texte",exact:true}).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake\n\n## Lumière\nsoft_light\n##");
+  await page.getByRole("dialog", { name: "Écrire votre image" }).getByRole("button", { name: "Historique", exact: true }).click();
+  await page.getByRole("button", { name: "Restaurer", exact: true }).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
+  await page.screenshot({ path: "../verification/v0.10.0/prompt-tools.png" });
+  await page.getByRole("button", { name: "Terminé", exact: true }).click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("prompt-blocks-v1")!)[0].title)).toBe("Lumière");
+});
+
+test("v5 preset image and local LoRA metadata", async ({ page }) => {
+  await connect(page);
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles("tests/fixtures/parameters.png");
+  await expect(page.getByText(/Paramètres chargés depuis l’image ·/)).toBeVisible();
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await page.getByRole("button", { name: "Nouveau preset", exact: true }).click();
+  await page.getByLabel("Titre du preset").fill("Image source");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.locator(".preset-thumbnail")).toBeVisible();
+  expect(await page.locator(".preset-thumbnail").getAttribute("src")).toMatch(/^data:image\/jpeg;base64,/);
+  await page.getByRole("dialog", { name: "Mes presets" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await openCards(page);
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.getByRole("button", { name: "Fiche film", exact: true }).click();
+  await expect(page.getByText("SD 1.5 · v1", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "film_grain", exact: true }).click();
+  await page.getByLabel("Mes notes").fill("Poids 0.7");
+  await page.getByRole("button", { name: "Enregistrer les notes" }).click();
+  await expect(page.getByText("Notes enregistrées sur cet appareil.")).toBeVisible();
+  await page.screenshot({ path: "../verification/v0.10.0/lora-details.png" });
+  await page.getByRole("button", { name: "Ajouter ce LoRA" }).click();
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
+});
+test.beforeEach(async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("onboarding-done", "true"));
+  const imageFixture = testInfo.title.includes("Mochi screens") ? "data:image/png;base64," + readFileSync("tests/fixtures/mochi-design.png").toString("base64") : png;
+  let profiles: any[] = [], active = "", submissions: any[] = [];
+  let items = ["lake.png", "forest.png", "mountain.png"].map((name, i) => ({ root: 0, relative: name, name, folder: "ComfyUI", modified: Date.now() - i, size: 123, favorite: false }));
+  let trash: any[] = [];
+  let modelFavorites: Record<string, string[]> = { checkpoints: [], loras: [] };
+  await page.route("**/__native", async route => {
+    const { command, args } = route.request().postDataJSON();
+    let value: any = null;
+    if (command === "restore") value = profiles.find(p => p.id === active)?.pairing.url ?? null;
+    if (command === "list_profiles") value = profiles.map(p => ({ id: p.id, name: p.name, url: p.pairing.url, active: p.id === active }));
+    if (command === "get_profile") value = profiles.find(p => p.id === args.id);
+    if (command === "save_profile") {
+      const id = args.id ?? "p" + profiles.length;
+      profiles = [...profiles.filter(p => p.id !== id), { id, name: args.name, pairing: args.pairing }];
+      if (id === active) active = "";
+      value = id;
+    }
+    if (command === "activate_profile") { active = args.id; value = profiles.find(p => p.id === active).pairing.url; }
+    if (command === "delete_profile") { profiles = profiles.filter(p => p.id !== args.id); if (active === args.id) active = ""; }
+    if (command === "disconnect") active = "";
+    if (command === "api") {
+      const p = args.path, u = new URL(p, "https://test");
+      if (p === "/api/system_stats") value = { system: { ram_total: 64 * 1024 ** 3, ram_free: 32 * 1024 ** 3 }, devices: [{ name: "RTX 4070 SUPER", vram_total: 12 * 1024 ** 3, vram_free: 9 * 1024 ** 3 }] };
+      else if (p === "/api/object_info") value = info;
+      else if (p === "/bridge/info") value = { version: 2, roots: [{ id: 0, name: "ComfyUI" }] };
+      else if (p === "/bridge/model-favorites") { if (args.body) { const { kind, name, favorite } = args.body; modelFavorites[kind] = favorite ? [...modelFavorites[kind], name] : modelFavorites[kind].filter(n => n !== name); } value = modelFavorites; }
+      else if (p === "/bridge/model-metadata") value = {items:args.body.names.map((name:string)=>({name,baseModel:"SD 1.5"}))};
+      else if (u.pathname === "/bridge/model-info") value = { title: "Film", version: "v1", baseModel: "SD 1.5", triggers: ["film_grain"], tags: ["style"], description: "Film texture" };
+      else if (p === "/api/queue") value = { queue_running: [], queue_pending: [] };
+      else if (p.startsWith("/bridge/events")) value = { events: [], seq: 0, connected: true };
+      else if (p === "/api/prompt") { submissions.push(args.body); value = { prompt_id: "test-job-" + submissions.length }; }
+      else if (p.startsWith("/api/history/")) {
+        const id = p.split("/").pop()!;
+        if (!items.some(i => i.name === id + ".png")) items.push({ root: 0, relative: id + ".png", name: id + ".png", folder: "ComfyUI", modified: Date.now(), size: 123, favorite: false });
+        value = { [id]: { status: { completed: true, status_str: "success" }, outputs: { "7": { images: [{ filename: id + ".png", subfolder: "", type: "output" }] } } } };
+      } else if (u.pathname === "/bridge/gallery") {
+        const filtered = items.filter(i => (!u.searchParams.get("q") || i.name.includes(u.searchParams.get("q")!)) && (u.searchParams.get("favorite") !== "true" || i.favorite));
+        value = { items: filtered, total: filtered.length, warnings: [] };
+      } else if (p === "/bridge/favorite") {
+        items = items.map(i => i.relative === args.body.relative ? { ...i, favorite: args.body.favorite } : i);
+        value = { favorite: args.body.favorite };
+      } else if (p === "/bridge/trash" && args.body) {
+        const item = items.find(i => i.relative === args.body.relative)!;
+        value = { ...item, id: item.name, deleted: Date.now() }; trash.push(value); items = items.filter(i => i !== item);
+      } else if (p === "/bridge/trash") value = { items: trash };
+      else if (p === "/bridge/restore") { const item = trash.find(i => i.id === args.body.id); items.push(item); trash = trash.filter(i => i !== item); value = {}; }
+    }
+    if (command === "translate_text") value = { text: "blue sky" };
+    if (command === "image") value = imageFixture;
+    if (command === "save_image") value = "Image enregistrée dans Photos / ComfyPocket";
+    await route.fulfill({ json: { value } });
+  });
+});
+async function openCards(page: Page) {
+  await page.locator(".studio-fields").waitFor();
+  for (const selector of [".advanced-inference", ".hires-options"]) {
+    const detail = page.locator(selector);
+    if (!(await detail.evaluate(el => (el as HTMLDetailsElement).open))) await detail.locator("summary").click();
+  }
+}
+async function prompt(page: Page, text: string) { await openCards(page); await page.getByRole("button", { name: "Votre idée", exact: true }).click(); await page.getByLabel("Prompt positif", { exact: true }).fill(text); await page.getByRole("button", { name: "Terminé", exact: true }).click(); }
+async function pairingForm(page: Page, name: string, url = cert.url) {
+  await page.getByLabel("Nom de la connexion").fill(name);
+  await page.getByText("Coller un fichier d’appairage", { exact: true }).click();
+  await page.getByLabel("Ou collez son contenu").fill(JSON.stringify({ ...cert, url }));
+}
+async function connect(page: Page) {
+  await page.goto("/");
+  await pairingForm(page, "Maison");
+  await page.getByRole("button", { name: "Connecter mon PC" }).click();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+  await openCards(page);
+}
+
+test("advanced workflow, distinct batches and integrated output", async ({ page }) => {
+  await connect(page);
+  await prompt(page, "A cabin beside a lake");
+  await page.getByLabel("Largeur", { exact: true }).fill("768");
+  await page.getByLabel("Hauteur", { exact: true }).fill("512");
+  await page.getByRole("button", { name: "Formats et dimensions" }).click();
+  await page.getByRole("button", { name: "Inverser largeur et hauteur" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(page.getByLabel("Largeur", { exact: true })).toHaveValue("512");
+  await page.getByLabel("Seed", { exact: true }).fill("18446744073709551615");
+  await page.getByLabel("Batches · nombre de lots", { exact: true }).fill("2");
+  await page.getByRole("switch", { name: "Activer Hires Fix" }).check();
+  await page.getByRole("switch", { name: "Activer Upscaler", exact: true }).check();
+  const bodies: any[] = [];
+  page.on("request", req => { if (req.url().endsWith("/__native")) { const data = req.postDataJSON(); if (data.args?.path === "/api/prompt") bodies.push(data.args.body); } });
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByText(/Génération terminée · 2 images/)).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[0].prompt["5"].inputs.seed).toBe("18446744073709551615");
+  expect(bodies[1].prompt["5"].inputs.seed).toBe(0);
+  expect(Object.values(bodies[0].prompt).filter((n: any) => n.class_type === "KSampler")).toHaveLength(2);
+  expect(bodies[0].extra_data.extra_pnginfo.comfy_pocket.settings.hires.enabled).toBe(true);
+  expect(await page.locator(".settings-grid").evaluate(el => !!(el.compareDocumentPosition(document.querySelector(".render-panel")!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await page.locator(".render-panel").scrollIntoViewIfNeeded();
+  await page.locator(".render-panel .image-button").first().click();
+  await page.getByRole("button", { name: "Enregistrer sur cet appareil" }).click();
+  await expect(page.getByText("Image enregistrée dans Photos / ComfyPocket")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+});
+test("gallery swipe navigation, favorite, trash and restore", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Agrandir lake.png" }).click();
+  const stage = page.locator(".viewer-stage");
+  async function swipe(dx: number, dy: number) {
+    const box = (await stage.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y + dy, { steps: 10 }); await page.mouse.up();
+  }
+  await swipe(0, -120); await expect(page.locator(".viewer-caption")).toContainText("forest.png");
+  await swipe(140, 0); await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true })).toBeEnabled();
+  await swipe(-150, 0); await expect(page.locator(".viewer-caption")).toContainText("mountain.png");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Corbeille", exact: true }).click();
+  await expect(page.locator(".trash-row")).toContainText("forest.png");
+  await page.getByRole("button", { name: "Restaurer", exact: true }).click();
+  await expect(page.getByText("La corbeille est vide.")).toBeVisible();
+  await page.getByRole("button", { name: "Favoris", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(1);
+  await expect(page.locator(".gallery-card")).toContainText("forest.png");
+});
+test("JPEG metadata import and reuse from gallery preserve the seed", async ({ page }) => {
+  await connect(page);
+  await page.locator('input[accept*="image/jpeg"]').setInputFiles("tests/fixtures/parameters.jpg");
+  await expect(page.getByLabel("Seed", { exact: true })).toHaveValue("18446744073709551615");
+  await expect(page.getByLabel("Votre idée")).toContainText("A quiet lake");
+  await expect(page.locator(".render-panel img")).toHaveCount(1);
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Agrandir lake.png" }).click();
+  await page.getByRole("button", { name: "Réutiliser les paramètres" }).click(); await openCards(page);
+  await expect(page.getByLabel("Seed", { exact: true })).toHaveValue("18446744073709551615");
+  await expect(page.getByLabel("Largeur", { exact: true })).toHaveValue("768");
+  await expect(page.locator(".import-summary")).toContainText("Paramètres PNG / EXIF");
+});
+test("model thumbnails, custom presets and invalid workflow", async ({ page }) => {
+  await connect(page); await page.locator(".model-select").click();
+  await expect(page.locator(".model-card img")).toHaveCount(2);
+  await page.locator(".model-choice").filter({ hasText: "landscape" }).click();
+  await expect(page.locator(".model-select")).toContainText("landscape");
+  await page.getByLabel("Largeur", { exact: true }).fill("640");
+  await page.getByRole("button", { name: "Formats et dimensions" }).click();
+  await page.getByText("Mes formats personnalisés", { exact: true }).click();
+  await page.getByRole("button", { name: "Mémoriser ce format" }).click();
+  await expect(page.locator(".preset-chip")).toContainText("640 × 1024");
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Décrivez");
+  if (await page.getByRole("dialog", { name: "Formats et dimensions" }).isVisible()) await page.getByRole("dialog", { name: "Formats et dimensions" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "Workflow API", exact: true }).click();
+  await page.locator(".card-heading button").filter({ hasText: "Workflow API" }).click();
+  await page.getByLabel("Workflow JSON").fill('{"nodes":[]}');
+  await page.getByRole("button", { name: "Valider les modifications" }).click();
+  await expect(page.getByRole("alert")).toContainText("format API");
+});
+test("multiple editable connections survive disconnect and switching", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await page.getByRole("button", { name: "Ajouter une connexion" }).click();
+  await pairingForm(page, "WireGuard", "https://10.0.0.2:8189");
+  await page.getByRole("button", { name: "Connecter mon PC" }).click();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(page.locator(".profile-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "Modifier WireGuard" }).click();
+  await page.getByLabel("Adresse du PC").fill("https://10.0.0.3:8189");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.locator(".profile-card").filter({ hasText: "WireGuard" })).toContainText("10.0.0.3");
+  await expect(page.getByRole("button", { name: "Déconnecter", exact: true })).toHaveCount(0);
+  await page.locator(".profile-card").filter({ hasText: "Maison" }).getByRole("button", { name: "Connecter", exact: true }).click();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+  await prompt(page, "A lake");
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByText(/Génération terminée/)).toBeVisible();
+});
+test("light UI reflows and passes accessibility checks on narrow mobile and desktop", async ({ page }) => {
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 }); await page.goto("/");
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await connect(page);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(3);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole("button", { name: "Agrandir lake.png" }).click();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("prompt editor inserts offline suggestions in a bubble and preserves both tabs", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  const positive = page.getByLabel("Prompt positif", { exact: true });
+  await positive.fill("landsc");
+  await expect(page.locator(".prompt-editor").getByRole("option").first()).toContainText("landscape");
+  await expect(page.locator(".suggestion-bubble")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "../verification/v0.10.0/autocompletion.png" });
+  expect((await page.locator(".suggestion-bubble").boundingBox())!.y).toBeGreaterThan((await positive.boundingBox())!.y);
+  await page.locator(".prompt-editor").getByRole("option").first().click();
+  await expect(positive).toHaveValue("landscape, ");
+  await page.getByRole("tab", { name: /Négatif/ }).click();
+  await page.getByRole("textbox", { name: "Prompt négatif", exact: true }).fill("blur");
+  await expect(page.locator(".prompt-editor").getByRole("option").first()).toBeVisible();
+  await page.locator(".prompt-editor").getByRole("option").first().click();
+  await page.getByRole("tab", { name: /Positif/ }).click();
+  await expect(positive).toHaveValue("landscape, ");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "../verification/v0.10.0/editeur.png" });
+  await page.getByRole("button", { name: "Terminé", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("landscape");
+});
+
+test("favorites persist for checkpoints and LoRAs and trained upscalers are selectable", async ({ page }) => {
+  await connect(page); await page.locator(".model-select").click();
+  await page.getByRole("button", { name: "Mettre en favori landscape", exact: true }).click();
+  await page.getByRole("button", { name: "Favoris", exact: true }).click();
+  await expect(page.locator(".model-card")).toHaveCount(1);
+  await page.locator(".model-choice").click();
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.getByRole("button", { name: "Mettre en favori film", exact: true }).click();
+  await page.locator(".model-choice").click();
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Retirer des favoris film", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("switch", { name: "Activer Upscaler", exact: true }).check();
+  await page.getByLabel("Upscaler final", { exact: true }).selectOption("model:4x-UltraSharp.pth");
+  await expect(page.getByLabel("Upscaler final", { exact: true })).toHaveValue("model:4x-UltraSharp.pth");
+});
+
+test("complete named presets survive reload and restore inference parameters", async ({ page }) => {
+  await connect(page); await prompt(page, "sunlight, landscape");
+  await page.getByLabel("Seed", { exact: true }).fill("18446744073709551615");
+  await page.getByRole("switch", { name: "Activer Hires Fix" }).check();
+  await page.getByLabel("Facteur Hires Fix", { exact: true }).fill("1.75");
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await page.getByRole("button", { name: "Nouveau preset", exact: true }).click();
+  await page.getByLabel("Titre du preset").fill("Mon paysage");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Charger Mon paysage" })).toBeVisible();
+  await page.getByRole("button", { name: "Renommer Mon paysage" }).click();
+  await page.getByLabel("Nouveau titre").fill("Matin au lac");
+  await page.getByRole("button", { name: "Valider le titre" }).click();
+  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  await prompt(page, "forest"); await page.getByLabel("Seed", { exact: true }).fill("12");
+  await page.reload();
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await page.getByRole("button", { name: "Charger Matin au lac" }).click(); await openCards(page);
+  await expect(page.getByLabel("Seed", { exact: true })).toHaveValue("18446744073709551615");
+  await expect(page.getByLabel("Facteur Hires Fix", { exact: true })).toHaveValue("1.75");
+  await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("sunlight, landscape");
+});
+
+test("reference glossary works offline, searches and inserts tags", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Glossaire", exact: true }).click();
+  await expect(page.locator(".theme-card")).toHaveCount(4);
+  await page.locator(".theme-card").filter({ hasText: "Style & rendu" }).click();
+  await page.getByRole("button", { name: "Lighting", exact: true }).click();
+  await page.locator(".section-choices").getByRole("button", { name: "Directional", exact: true }).click();
+  await expect(page.locator(".glossary-tag").filter({ hasText: "backlighting" })).toBeVisible();
+  await page.getByLabel("Rechercher dans le glossaire").fill("sunlight");
+  await page.locator(".glossary-tag").filter({ has: page.locator("strong", { hasText: /^sunlight$/ }) }).click();
+  await page.getByRole("button", { name: "Positif", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("settings")!).positive)).toContain("sunlight");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByLabel("Rechercher dans le glossaire").fill("uzumaki_naruto");
+  await expect(page.getByText("Aucun tag trouvé", { exact: true })).toBeVisible();
+});
+
+test("gallery is fullscreen, preloads neighbours, pinches and resets zoom", async ({ page }) => {
+  await connect(page); const originals: string[] = [];
+  page.on("request", req => { if (req.url().endsWith("/__native")) { const d = req.postDataJSON(); if (d.command === "image" && !d.args.path.includes("thumb")) originals.push(d.args.path); } });
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Agrandir lake.png" }).click();
+  const stage = page.locator(".viewer-stage");
+  await expect(page.locator(".full-image")).toBeVisible();
+  await expect.poll(() => originals.some(p => p.includes("forest.png"))).toBe(true);
+  expect(await stage.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "Image suivante" })).toHaveCount(0);
+  await expect(page.locator(".viewer-actions button")).toHaveCount(4);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 145, y: 390, id: 1 }, { x: 245, y: 430, id: 2 }] });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 85, y: 350, id: 1 }, { x: 305, y: 470, id: 2 }] });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(async () => Number(await stage.getAttribute("data-scale"))).toBeGreaterThan(1.5);
+  await stage.dblclick({ position: { x: 190, y: 400 } });
+  await expect(stage).toHaveAttribute("data-scale", "1.00");
+});
+
+test("horizontal page gestures navigate all four windows", async ({ page }) => {
+  await connect(page);
+  async function swipe() { await page.evaluate(() => scrollTo(0, 0)); const box = (await page.locator(".active-pane .page-heading").boundingBox())!; await page.mouse.move(box.x + box.width * .65, box.y + 20); await page.mouse.down(); await page.mouse.move(box.x + 10, box.y + 20, { steps: 10 }); await page.mouse.up(); }
+  await swipe(); await expect(page.getByRole("button", { name: "Galerie", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.locator(".gallery-toolbar").waitFor(); await swipe(); await expect(page.getByRole("button", { name: "Glossaire", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.locator(".theme-card").first().waitFor(); await swipe(); await expect(page.getByRole("button", { name: "Paramètres", exact: true })).toHaveAttribute("aria-current", "page");
+});
+
+test("Mochi dock, open studio sections and persistent gallery density", async ({ page }) => {
+  await connect(page); await page.reload();
+  await expect(page.locator(".settings-grid")).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  expect(await nav.locator("button").evaluateAll(buttons => buttons.map(b => b.getAttribute("aria-label")))).toEqual(["Atelier", "Galerie", "Glossaire", "Paramètres"]);
+  expect(await nav.locator("button > span:last-child").allTextContents()).toEqual(["Atelier", "Galerie", "Glossaire", "Paramètres"]);
+  await expect(page.locator(".studio-fields .collapsible-card")).toHaveCount(0);
+  await expect(page.locator(".studio-model")).toBeVisible();
+  await expect(page.locator(".studio-prompts")).toBeVisible();
+  await expect(page.getByLabel("Largeur", { exact: true })).toBeVisible();
+  await page.screenshot({ path: "../verification/v0.10.0/creer-cartes.png" });
+  await nav.getByRole("button", { name: "Galerie", exact: true }).click();
+  for (const n of [2, 3, 4]) {
+    await page.getByRole("button", { name: `${n} colonnes`, exact: true }).click();
+    expect(await page.locator(".gallery-grid").evaluate(el => getComputedStyle(el).gridTemplateColumns.split(" ").length)).toBe(n);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.reload(); await nav.getByRole("button", { name: "Galerie", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "Galerie", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "4 colonnes", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("v4 equal dock insets, white cards, concise headings and live PC resources", async ({ page }) => {
+  await connect(page);
+  await expect(page.getByRole("heading", { name: "Votre imagination,", exact: true })).toBeVisible();
+  await expect(page.locator(".active-pane .page-heading p")).toHaveText("La puissance de votre PC. La liberté du mobile.");
+  const inset = await page.locator(".sidebar").evaluate(el => {
+    const rect = el.getBoundingClientRect(), buttons = el.querySelectorAll("nav button"), first = buttons[0].getBoundingClientRect(), last = buttons[3].getBoundingClientRect();
+    return { left: first.left - rect.left, right: rect.right - last.right, top: first.top - rect.top };
+  });
+  expect(Math.abs(inset.left - inset.right)).toBeLessThan(1);
+  expect(inset.left).toBeGreaterThanOrEqual(10);
+  expect(inset.top).toBeGreaterThanOrEqual(10);
+  const card = page.getByRole("button", { name: "Votre idée", exact: true });
+  await card.scrollIntoViewIfNeeded(); await card.hover();
+  expect(await card.evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
+  const order = await page.locator(".settings-grid").evaluate(el => {
+    const model = el.querySelector(".model-select")!, loras = el.querySelector(".studio-loras")!, prompt = el.querySelector(".prompt-entry")!;
+    return !!(model.compareDocumentPosition(loras) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(loras.compareDocumentPosition(prompt) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }); expect(order).toBe(true);
+  await page.getByRole("button", { name: "PC connecté", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "État du PC" });
+  await expect(dialog.getByText("192.168.1.8", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("8189", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("RTX 4070 SUPER", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("32 Go", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("9 Go", { exact: true })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "../verification/v0.10.0/etat-pc.png" });
+});
+
+test("v4 autocomplete frame persists while typing and can be disabled", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  const field = page.getByLabel("Prompt positif", { exact: true });
+  await field.fill("land"); await expect(page.locator(".suggestion-bubble")).toHaveAttribute("aria-busy", "false");
+  await page.locator(".suggestion-bubble").evaluate(el => {
+    (window as any).bubbleNode = el; (window as any).bubbleHidden = false;
+    (window as any).bubbleObserver = new MutationObserver(() => { if ((el as HTMLElement).hidden) (window as any).bubbleHidden = true; });
+    (window as any).bubbleObserver.observe(el, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  await field.pressSequentially("sc", { delay: 90 });
+  await expect(page.locator(".suggestion-bubble")).toHaveAttribute("aria-busy", "false");
+  expect(await page.evaluate(() => (window as any).bubbleNode === document.querySelector(".suggestion-bubble") && !(window as any).bubbleHidden)).toBe(true);
+  await page.evaluate(() => (window as any).bubbleObserver.disconnect());
+  await page.locator(".prompt-editor").getByRole("option").first().click();
+  await expect(field).toHaveValue("landscape, ");
+  await page.getByRole("switch", { name: "Activer l’autocomplétion" }).uncheck();
+  await field.fill("lands"); await expect(page.locator(".suggestion-bubble")).not.toBeVisible();
+  await page.getByRole("button", { name: "Terminé", exact: true }).click();
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Activer l’autocomplétion" })).not.toBeChecked();
+  await page.getByRole("switch", { name: "Activer l’autocomplétion" }).check();
+  await expect(page.locator(".prompt-editor").getByRole("option").first()).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("v4 presets occupy a page with a separate create dialog and spaced undo", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  expect(await page.locator(".presets-page").boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+  await expect(page.getByLabel("Titre du preset")).toHaveCount(0);
+  await page.getByRole("button", { name: "Nouveau preset", exact: true }).click();
+  await page.getByLabel("Titre du preset").fill("Lumière du matin");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.getByRole("button", { name: "Supprimer le preset Lumière du matin" }).click();
+  const search = (await page.getByLabel("Rechercher un preset").boundingBox())!, undo = (await page.getByRole("button", { name: "Annuler la suppression" }).boundingBox())!;
+  expect(undo.y - (search.y + search.height)).toBeGreaterThan(30);
+  await page.getByRole("button", { name: "Annuler la suppression" }).click();
+  await expect(page.getByRole("button", { name: "Charger Lumière du matin" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "../verification/v0.10.0/presets.png" });
+});
+
+test("v4 long press selects multiple images for favorite download and recoverable trash", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  const calls: any[] = []; page.on("request", req => { if (req.url().endsWith("/__native")) calls.push(req.postDataJSON()); });
+  const first = page.getByRole("button", { name: "Agrandir lake.png", exact: true }); await first.hover(); await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up();
+  await expect(page.locator(".photo-viewer")).toHaveCount(0);
+  await expect(page.locator(".batch-toolbar")).toContainText("1sélection");
+  await page.getByRole("button", { name: "Sélectionner forest.png", exact: true }).click();
+  await expect(page.locator(".batch-toolbar")).toContainText("2sélection");
+  await page.getByRole("button", { name: "Mettre la sélection en favori" }).click();
+  await expect(page.getByRole("button", { name: "Télécharger la sélection" })).toBeEnabled();
+  expect(calls.filter(c => c.args?.path === "/bridge/favorite")).toHaveLength(2);
+  await page.getByRole("button", { name: "Télécharger la sélection" }).click();
+  await expect.poll(() => calls.filter(c => c.command === "save_image").length).toBe(2);
+  await expect(page.getByRole("button", { name: "Supprimer la sélection" })).toBeEnabled();
+  await page.screenshot({ path: "../verification/v0.10.0/selection.png" });
+  await page.getByRole("button", { name: "Supprimer la sélection" }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(1);
+  await expect(page.locator(".batch-toolbar")).toHaveCount(0);
+  await page.getByRole("button", { name: "Corbeille", exact: true }).click();
+  await expect(page.locator(".trash-row")).toHaveCount(2);
+});
+
+test("v4 vertical gesture feedback and decoded neighbour survive image handoff", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Agrandir lake.png", exact: true }).click();
+  const stage = page.locator(".viewer-stage");
+  await expect(page.locator(".adjacent-image")).toHaveCount(1);
+  await page.locator(".adjacent-image").evaluate(el => (el as HTMLElement).dataset.decodedIdentity = "next");
+  await page.mouse.move(190, 400); await page.mouse.down(); await page.mouse.move(250, 400, { steps: 6 });
+  await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "favorite"); await expect(page.locator(".gesture-action")).toBeVisible();
+  await page.mouse.move(130, 400, { steps: 6 });
+  await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "trash");
+  await page.screenshot({ path: "../verification/v0.10.0/geste-corbeille.png" });
+  await page.mouse.up(); await page.waitForTimeout(250);
+  await page.mouse.move(190, 500); await page.mouse.down(); await page.mouse.move(190, 320, { steps: 10 }); await page.mouse.up();
+  await expect(page.locator(".viewer-caption")).toContainText("forest.png");
+  await expect(page.locator(".full-image")).toHaveAttribute("data-decoded-identity", "next");
+  expect(await stage.locator(".viewer-rail").evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m41)).toBe(0);
+  await expect(page.locator(".gesture-action")).not.toBeVisible();
+});
+
+test("v4 gallery refresh does not shift the grid and notices are transient overlays", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Galerie", exact: true })).toHaveAttribute("aria-current", "page");
+  const y = (await page.locator(".gallery-grid").boundingBox())!.y;
+  await page.route("**/__native", async route => { const d = route.request().postDataJSON(); if (d.args?.path?.startsWith("/bridge/gallery")) await new Promise(r => setTimeout(r, 450)); await route.fallback(); });
+  await page.getByRole("button", { name: "Actualiser la galerie" }).click();
+  await expect(page.getByRole("button", { name: "Actualiser la galerie" })).toBeDisabled();
+  expect((await page.locator(".gallery-grid").boundingBox())!.y).toBe(y);
+  await expect(page.getByText("Chargement de la collection…", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Actualiser la galerie" })).toBeEnabled();
+  expect((await page.locator(".gallery-grid").boundingBox())!.y).toBe(y);
+  await expect(page.locator(".page-heading + .notice,.page-heading + .alert")).toHaveCount(0);
+  await expect(page.locator(".toast")).toHaveCount(0, { timeout: 7000 });
+});
+
+test("v4 page slides preserve form nodes and keep neighbours outside the settled viewport", async ({ page }) => {
+  await connect(page);
+  await page.getByLabel("Steps", { exact: true }).evaluate(el => (el as HTMLElement).dataset.preserved = "yes");
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ["Galerie", "Glossaire", "Paramètres", "Atelier"]) {
+      const tab = page.getByRole("button", { name, exact: true }); await tab.click();
+      await expect(tab).toHaveAttribute("aria-current", "page");
+      const outside = await page.evaluate(() => {
+        const bounds = document.querySelector("main")!.getBoundingClientRect();
+        return [...document.querySelectorAll(".page-pane[inert]")].every(el => {
+          const b = el.getBoundingClientRect(); return b.right <= bounds.left + 1 || b.left >= bounds.right - 1;
+        });
+      });
+      expect(outside).toBe(true);
+    }
+  }
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveAttribute("data-preserved", "yes");
+  await expect(page.locator(".studio-prompts")).toBeVisible();
+  // A quick second tap must win instead of being lost while the first animation runs.
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Paramètres", exact: true })).toHaveAttribute("aria-current", "page");
+});
+
+test("v4 cancelled long press does not select and failed batch items can be retried alone", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  const photo = page.getByRole("button", { name: "Agrandir lake.png", exact: true });
+  await photo.dispatchEvent("pointerdown", { pointerId: 1, button: 0, clientX: 60, clientY: 400 });
+  await photo.dispatchEvent("pointermove", { pointerId: 1, clientX: 60, clientY: 440 });
+  await page.waitForTimeout(500); await photo.dispatchEvent("pointercancel", { pointerId: 1 });
+  await expect(page.locator(".batch-toolbar")).toHaveCount(0);
+  await page.getByRole("button", { name: "Sélectionner", exact: true }).click();
+  await page.getByRole("button", { name: "Tout sélectionner", exact: true }).click();
+  let fail = true; const attempts: string[] = [];
+  await page.route("**/__native", async route => {
+    const d = route.request().postDataJSON();
+    if (d.args?.path === "/bridge/favorite") {
+      attempts.push(d.args.body.relative);
+      if (d.args.body.relative === "forest.png" && fail) { await route.fulfill({ json: { error: "Connection interrupted" } }); return; }
+    }
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: "Mettre la sélection en favori" }).click();
+  await expect(page.locator(".batch-error")).toContainText("1 action(s)");
+  await expect(page.locator(".batch-toolbar strong")).toHaveText("1sélection");
+  expect(attempts).toEqual(["lake.png", "forest.png", "mountain.png"]);
+  fail = false; await page.getByRole("button", { name: "Mettre la sélection en favori" }).click();
+  await expect(page.locator(".batch-error")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Mettre la sélection en favori" })).toBeEnabled();
+  expect(attempts).toEqual(["lake.png", "forest.png", "mountain.png", "forest.png"]);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("v4 viewer loads and decodes the next page before handing off the image", async ({ page }) => {
+  await page.route("**/__native", async route => {
+    const d = route.request().postDataJSON();
+    if (d.args?.path?.startsWith("/bridge/gallery")) {
+      const offset = new URL(d.args.path, "https://test").searchParams.get("offset");
+      await route.fulfill({ json: { value: { items: [{ root: 0, relative: offset === "1" ? "next.png" : "first.png", name: offset === "1" ? "next.png" : "first.png", folder: "ComfyUI", favorite: false, modified: Date.now(), size: 123 }], total: 2, warnings: [] } } }); return;
+    }
+    await route.fallback();
+  });
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Agrandir first.png", exact: true }).click();
+  await expect(page.locator(".full-image")).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator(".viewer-caption")).toContainText("next.png");
+  expect(await page.locator(".full-image").evaluate(el => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0)).toBe(true);
+  expect(await page.locator(".viewer-rail").evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m41)).toBe(0);
+});
+
+test("v4 returning to the gallery discovers images created since the previous visit", async ({ page }) => {
+  await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Agrandir lake.png", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.route("**/__native", async route => {
+    if (route.request().postDataJSON().args?.path?.startsWith("/bridge/gallery")) {
+      await route.fulfill({ json: { value: { items: [{ root: 0, relative: "new.png", name: "new.png", folder: "ComfyUI", favorite: false, modified: Date.now(), size: 123 }], total: 1, warnings: [] } } }); return;
+    }
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Agrandir new.png", exact: true })).toBeVisible();
+});
+
+
+test("v6 session storage failure does not interrupt accepted generation", async ({ page }) => {
+  await page.addInitScript(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (/^(settings|tasks:|results:|seed:|clientId)/.test(key)) throw new DOMException("Full", "QuotaExceededError");
+      return write.call(this, key, value);
+    };
+  });
+  await connect(page);
+  await prompt(page, "a peaceful landscape");
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByText(/Génération terminée/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agrandir test-job-1.png", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+});
+
+test("v6 favorites update immediately and empty searches are recoverable", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Mettre en favori lake.png", exact: true }).click();
+  await page.getByRole("button", { name: "Favoris", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "Retirer des favoris lake.png", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(0);
+  await expect(page.locator(".gallery-density")).toContainText("0 images");
+  await page.getByRole("button", { name: "Toutes", exact: true }).click();
+  await page.getByLabel("Rechercher dans la galerie").fill("nothing-matches");
+  await expect(page.getByText("Aucune image ne correspond.")).toBeVisible();
+  await page.getByRole("button", { name: "Effacer les filtres", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(3);
+});
+
+test("v6 corrupt preset libraries cannot be overwritten and nested dialogs release scroll", async ({ page }) => {
+  await connect(page);
+  const corrupt = '[{"name":"preserve me"}]';
+  await page.evaluate(value => localStorage.setItem("inference-presets-v1", value), corrupt);
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Nouveau preset", exact: true })).toBeDisabled();
+  await expect(page.getByRole("dialog", { name: "Mes presets" }).locator('input[type=file]')).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem("inference-presets-v1"))).toBe(corrupt);
+  await page.getByRole("dialog", { name: "Mes presets" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.getByRole("button", { name: "Fiche film", exact: true }).click();
+  await page.getByRole("button", { name: "Ajouter ce LoRA", exact: true }).click();
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+});
+
+test("v6 settings survive an immediate reload before debounce expires", async ({ page }) => {
+  await connect(page);
+  await page.getByLabel("Steps", { exact: true }).fill("43");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+  await openCards(page);
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveValue("43");
+});
+
+
+test("Mochi screens preserve the design across mobile and desktop", async ({ page }) => {
+  await connect(page);
+  await page.setViewportSize({ width: 440, height: 956 });
+  if (await page.getByRole("button", { name: "Fermer la notification", exact: true }).count()) await page.getByRole("button", { name: "Fermer la notification", exact: true }).click();
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.locator(".model-choice").filter({ hasText: "film" }).click();
+  await prompt(page, "1girl, lavender hair, flower garden, soft lighting, blue eyes");
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByText(/Génération terminée/)).toBeVisible();
+  await page.locator(".render-panel").scrollIntoViewIfNeeded();
+  await expect(page.locator(".render-panel img").first()).toBeVisible();
+  await page.locator(".advanced-inference").evaluate(el => (el as HTMLDetailsElement).open = false);
+  await page.locator(".hires-options").evaluate(el => (el as HTMLDetailsElement).open = false);
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: "../verification/v0.10.0/mochi-atelier.png", fullPage: true });
+  for (const name of ["Galerie", "Glossaire", "Paramètres"]) {
+    await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name, exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
+    if (name === "Glossaire") await expect(page.locator(".theme-card").first()).toBeVisible();
+    if (name === "Galerie") await expect(page.locator(".gallery-card").first()).toBeVisible();
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.screenshot({ path: `../verification/v0.10.0/mochi-${name}.png` });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: "../verification/v0.10.0/mochi-desktop.png", fullPage: true });
+});
+
+test("Mochi quick circles navigate every studio section and follow scrolling", async ({ page }) => {
+  await connect(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const nav = page.getByRole("navigation", { name: "Sections de l’Atelier" });
+  await expect(nav.getByRole("button")).toHaveCount(7);
+  for (const [label, id] of [["Configuration", "configuration"], ["Modèle", "model"], ["LoRA", "loras"], ["Prompts", "prompts"], ["Réglages", "generation"], ["Rendu", "render"]]) {
+    await nav.getByRole("button", { name: `Aller à ${label}`, exact: true }).click();
+    await expect(page.locator(`#studio-${id}`)).toBeFocused();
+    const section = await page.locator(`#studio-${id}`).boundingBox(), menu = await nav.boundingBox();
+    expect(menu!.y).toBeGreaterThanOrEqual(0);
+    expect(section!.y).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(menu!.y + menu!.height / 2 - page.viewportSize()!.height / 2)).toBeLessThan(2);
+    await expect(nav.getByRole("button", { name: `Aller à ${label}`, exact: true })).toHaveAttribute("aria-current", "location");
+  }
+  await nav.getByRole("button", { name: "Aller à Modèle", exact: true }).click();
+  const rects = await nav.getByRole("button").evaluateAll(elements => elements.map(e => e.getBoundingClientRect().toJSON()));
+  expect(new Set(rects.map(r => r.x)).size).toBe(1);
+  expect(rects[0].width).toBe(32);
+  await page.getByRole("button", { name: "Workflow API", exact: true }).click();
+  await expect(nav.getByRole("button")).toHaveCount(3);
+});
+
+test("Mochi studio shortcuts restore LoRA weight and open preset and prompt libraries", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.locator(".model-choice").filter({ hasText: "film" }).click();
+  await page.getByLabel("Poids LoRA 1", { exact: true }).fill("0.65");
+  await page.getByRole("switch", { name: "Activer film", exact: true }).uncheck();
+  await expect(page.getByLabel("Poids LoRA 1", { exact: true })).toHaveValue("0");
+  await page.getByRole("switch", { name: "Activer film", exact: true }).check();
+  await expect(page.getByLabel("Poids LoRA 1", { exact: true })).toHaveValue("0.65");
+  await page.getByRole("button", { name: "film_grain +", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("film_grain,");
+  await page.getByRole("button", { name: "+ Bloc réutilisable", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Blocs réutilisables" })).toBeVisible();
+  await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "+ Enregistrer le preset", exact: true }).click();
+  await page.getByLabel("Titre du preset").fill("Pastel");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.getByRole("dialog", { name: "Mes presets" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(page.locator(".preset-current")).toContainText("Pastel");
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(page.locator(".settings-resources")).toContainText("RTX 4070 SUPER");
+  await page.locator(".settings-group summary").filter({hasText:"Atelier"}).click();
+  await page.getByRole("button", { name: "Mes presets Enregistrer et réutiliser une configuration", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Mes presets" })).toBeVisible();
+});
+
+test("Mochi model favorite stays synchronized after returning from the picker", async ({ page }) => {
+  await connect(page); await page.locator(".model-select").click();
+  await page.getByRole("button", { name: "Mettre en favori dreamshaper 8", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(page.locator(".model-favorite")).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".model-favorite").click();
+  await page.locator(".model-select").click();
+  await expect(page.getByRole("button", { name: "Mettre en favori dreamshaper 8", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
+
+test("left-handed navigation persists and stays clear of studio controls", async ({ page }) => {
+  await connect(page);
+  const nav = page.getByRole("navigation", { name: "Sections de l’Atelier" });
+  const before = await nav.boundingBox();
+  expect(page.viewportSize()!.width - before!.x - before!.width).toBe(3);
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(nav).toHaveCount(0);
+  if(await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).count()) await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).click();
+  await page.getByRole("switch", { name: "Mode gaucher", exact: true }).check();
+  await page.reload();
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  const after = await nav.boundingBox();
+  expect(after!.x).toBe(3);
+  expect(Math.abs(after!.y + after!.height / 2 - page.viewportSize()!.height / 2)).toBeLessThan(2);
+  await nav.getByRole("button", { name: "Aller à Prompts", exact: true }).click();
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Écrire votre image" })).toBeVisible();
+  await page.screenshot({ path: "../verification/v0.10.0/left-handed-editor.png" });
+});
+
+test("foreground recovery settles suspended transitions and interrupted drags without losing inputs", async ({ page }) => {
+  await connect(page);
+  await page.getByLabel("Steps", { exact: true }).fill("37");
+  await page.getByLabel("Steps", { exact: true }).evaluate(el => el.setAttribute("data-preserved", "yes"));
+  await page.evaluate(() => {
+    (document.querySelector('.sidebar button:nth-child(2)') as HTMLButtonElement).click();
+    document.querySelector('.page-track')!.getAnimations().forEach(a => a.pause());
+    window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(new Event('pageshow'));
+  });
+  await expect(page.getByRole("button", { name: "Galerie", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.locator('.page-track')).toHaveCSS('transform', 'none');
+  await expect(page.locator('.gallery-card')).toHaveCount(3);
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveAttribute("data-preserved", "yes");
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveValue("37");
+  const main = page.locator('main');
+  await main.dispatchEvent('pointerdown', { pointerId: 7, isPrimary: true, button: 0, clientX: 250, clientY: 300 });
+  await main.dispatchEvent('pointermove', { pointerId: 7, isPrimary: true, clientX: 240, clientY: 300 });
+  // Reproduce an interrupted compositor offset before Android resumes the WebView.
+  await page.locator('.page-track').evaluate(el => (el as HTMLElement).style.transform = 'translate3d(-800px,0,0)');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.locator('.page-track')).toHaveCSS('transform', 'none');
+  await expect(page.locator('.active-pane')).toHaveAttribute('data-page', 'create');
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveValue("37");
+  for (const interrupt of ['cancel', 'pause'] as const) {
+    await page.getByRole('button', { name: 'Galerie', exact: true }).evaluate((el, interrupt) => {
+      (el as HTMLButtonElement).click();
+      document.querySelector('.page-track')!.getAnimations().forEach(a => a[interrupt]());
+    }, interrupt);
+    await expect(page.locator('.active-pane')).toHaveAttribute('data-page', 'gallery');
+    await expect(page.locator('.page-track')).toHaveCSS('transform', 'none');
+    await page.getByRole('button', { name: 'Atelier', exact: true }).click();
+    await expect(page.locator('.active-pane')).toHaveAttribute('data-page', 'create');
+  }
+});
+
+test("floating shortcuts preserve page width and the header uses Mochi on every page", async ({ page }) => {
+  await connect(page);
+  const padding = await page.locator('.active-pane').evaluate(el => {
+    const css = getComputedStyle(el); return [css.paddingLeft, css.paddingRight];
+  });
+  expect(padding[0]).toBe(padding[1]);
+  for (const name of ['Galerie', 'Glossaire', 'Paramètres', 'Atelier']) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.header-spark img')).toBeVisible();
+    expect(await page.locator('.header-spark img').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  }
+});
+
+test("model import downloads on the PC, survives closing the sheet and refreshes LoRAs without resetting prompt", async ({ page }) => {
+  let revision=0; let jobs:any[]=[];
+  await page.route("**/__native", async route => {
+    const d=route.request().postDataJSON(); let value:any;
+    if(d.args?.path==="/bridge/info")value={version:4,modelImports:true,roots:[]};
+    else if(d.args?.path==="/bridge/imports")value={revision,jobs};
+    else if(d.args?.path==="/bridge/imports/inspect")value={id:"plan",title:"Film light",provider:"civitai",files:[{id:"file",name:"new-light.safetensors",label:"V2 · new-light.safetensors",kind:"loras",size:1024,baseModel:"SDXL"}]};
+    else if(d.args?.path==="/bridge/imports/start") {jobs=[{id:"job",name:"new-light.safetensors",kind:"loras",status:"downloading",received:200,total:1024}];value=jobs[0];}
+    else if(d.args?.path==="/api/object_info" && revision) {value=structuredClone(info);value.LoraLoader.input.required.lora_name[0].push("new-light.safetensors");}
+    else return route.fallback();
+    await route.fulfill({json:{value}});
+  });
+  await connect(page);await prompt(page,"landscape, keep my prompt");
+  await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await page.getByRole("button",{name:"Depuis un lien",exact:true}).click();
+  await page.getByLabel("Lien du modèle ou du fichier").fill("https://civitai.red/models/123");
+  await page.getByRole("button",{name:"Analyser le lien"}).click();
+  await expect(page.getByLabel("Installer comme")).toHaveValue("loras");
+  await page.screenshot({path:"../verification/v0.12.0/import-plan.png"});
+  await page.getByRole("button",{name:"Télécharger et installer"}).click();
+  await expect(page.getByRole("progressbar")).toBeVisible();
+  await expect(page.getByRole("dialog").locator("input[type=password]")).toHaveValue("");
+  await page.getByRole("button",{name:"Fermer",exact:true}).click();
+  jobs[0].status="completed";jobs[0].received=1024;revision=1;
+  await page.getByRole("button",{name:"LoRA / LyCORIS",exact:true}).click();
+  await expect(page.locator(".model-choice").filter({hasText:"new-light.safetensors"})).toBeVisible({timeout:10000});
+  await page.getByRole("button",{name:"Fermer",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Votre idée",exact:true})).toContainText("landscape, keep my prompt");
+  await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await expect(page.getByText("LoRA / LyCORIS · Installé sur le PC")).toBeVisible();
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+});
+
+test("model import explains an old companion and does not offer a broken action",async({page})=>{
+  await connect(page);await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour importer des modèles.")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Analyser le lien"})).toHaveCount(0);
+});
+
+test("an import-capable companion without Civitai browsing keeps link installation available",async({page})=>{
+  await page.route("**/__native",async route=>{
+    const d=route.request().postDataJSON();
+    if(d.args?.path==="/bridge/info") return route.fulfill({json:{value:{version:4,modelImports:true,roots:[]}}});
+    if(d.args?.path==="/bridge/imports") return route.fulfill({json:{value:{revision:0,jobs:[]}}});
+    return route.fallback();
+  });
+  await connect(page);await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour explorer Civitai. L’installation depuis un lien reste disponible.")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Rechercher",exact:true})).toHaveCount(0);
+  await page.getByRole("button",{name:"Depuis un lien",exact:true}).click();
+  await page.getByLabel("Lien du modèle ou du fichier").fill("https://civitai.com/models/1");
+  await expect(page.getByRole("button",{name:"Analyser le lien"})).toBeEnabled();
+});
+
+test("Anima automatic generation uses separate components and validates dependencies before queuing", async ({ page }) => {
+  let missing = false; const submissions: any[] = [];
+  const anima = structuredClone(info) as any;
+  anima.CheckpointLoaderSimple.input.required.ckpt_name[0] = ["renamed-anima.safetensors"];
+  anima.CLIPLoader = {input:{required:{clip_name:[["qwen_3_06b_base.safetensors"]]}}};
+  anima.VAELoader.input.required.vae_name[0] = ["qwen_image_vae.safetensors"];
+  await page.route("**/__native", async route => {
+    const d = route.request().postDataJSON(); let value: any;
+    if (d.args?.path === "/bridge/info") value = {version:4, modelProfiles:true, roots:[]};
+    else if (d.args?.path?.startsWith("/bridge/model-profile?")) value = {architecture:"anima"};
+    else if (d.args?.path === "/api/object_info") {value = structuredClone(anima); if (missing) value.CLIPLoader.input.required.clip_name[0] = [];}
+    else if (d.args?.path === "/api/prompt") {submissions.push(d.args.body); return route.fallback();}
+    else return route.fallback();
+    await route.fulfill({json:{value}});
+  });
+  await connect(page); await prompt(page, "a lavender mochi mascot");
+  await page.getByRole("button", {name:"Générer depuis le menu rapide"}).click();
+  await expect.poll(() => submissions.length).toBe(1);
+  expect(submissions[0].prompt["20"].inputs.clip_name).toBe("qwen_3_06b_base.safetensors");
+  expect(submissions[0].prompt["21"].inputs.vae_name).toBe("qwen_image_vae.safetensors");
+  missing = true; await page.reload();
+  await expect(page.getByRole("button", {name:"Votre idée", exact:true})).toContainText("lavender mochi");
+  await page.getByRole("button", {name:"Générer depuis le menu rapide"}).click();
+  await expect(page.getByText(/Anima nécessite qwen_3_06b_base/)).toBeVisible();
+  expect(submissions.length).toBe(1);
+});
+
+test("prompt blocks preserve free text, reorder, undo and compile without comments", async ({page}) => {
+  const submitted:any[]=[];
+  page.on("request",req=>{if(req.url().endsWith("/__native")){const d=req.postDataJSON();if(d.args?.path==="/api/prompt")submitted.push(d.args.body);}});
+  await connect(page);await prompt(page,"quality,\n\n## Body\nred_dress, blue_eyes,\n##\n\n## Background\nbeach,\n##\n\nsoft light");
+  await page.getByRole("button",{name:"Votre idée",exact:true}).click();
+  await expect(page.locator('.prompt-part')).toHaveCount(4);
+  await expect(page.locator('.free-part')).toHaveCount(2);
+  await page.getByRole("button",{name:"Descendre Body",exact:true}).click();
+  await expect(page.locator('.part-title input').first()).toHaveValue("Background");
+  await page.getByRole("button",{name:"Annuler la dernière modification"}).click();
+  await expect(page.locator('.part-title input').first()).toHaveValue("Body");
+  await page.getByRole("button",{name:"Modifier le texte de Body"}).click();
+  const edit=page.getByRole("dialog",{name:"Body",exact:true});
+  await edit.getByRole("textbox",{name:"Texte du bloc",exact:true}).fill("red_dress, blue_eyes, white_hair,");
+  await edit.getByRole("button",{name:"Terminé",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Modifier le texte de Body"})).toContainText("white_hair");
+  await page.getByRole("button",{name:"Enregistrer Body dans la bibliothèque"}).click();
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('prompt-blocks-v1')!)[0].title)).toBe("Body");
+  await page.screenshot({path:"../verification/v0.13.0/prompt-blocks.png"});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await page.getByRole("button",{name:"Terminé",exact:true}).click();
+  await page.getByRole("button",{name:"Générer depuis le menu rapide"}).click();
+  await expect.poll(()=>submitted.length).toBe(1);
+  expect(submitted[0].prompt['2'].inputs.text).not.toContain('##');
+  expect(submitted[0].prompt['2'].inputs.text).toContain('white_hair');
+  expect(submitted[0].extra_data.extra_pnginfo.comfy_pocket.settings.positive).toContain('## Body');
+});
+
+test("prompt blocks drag by handle, create negative block and retain names across reload",async({page})=>{
+  await connect(page);await prompt(page,"## Body\nred_dress,\n##\n\n## Background\nbeach,\n##");
+  await page.getByRole('button',{name:'Votre idée',exact:true}).click();
+  const handle=await page.getByRole('button',{name:'Déplacer Body',exact:true}).boundingBox();
+  const target=await page.getByRole('button',{name:'Modifier le texte de Background'}).boundingBox();
+  await page.mouse.move(handle!.x+handle!.width/2,handle!.y+handle!.height/2);await page.mouse.down();
+  await page.mouse.move(target!.x+target!.width/2,target!.y+target!.height/2,{steps:12});await page.mouse.up();
+  await expect(page.locator('.part-title input').first()).toHaveValue('Background');
+  await page.getByRole('tab',{name:/Négatif/}).click();
+  await page.getByRole('button',{name:'Ajouter un bloc',exact:true}).click();
+  await page.getByLabel('Nom du bloc 1').fill('À éviter');
+  await page.getByRole('button',{name:'Modifier le texte de À éviter'}).click();
+  await page.getByRole('dialog',{name:'À éviter',exact:true}).getByRole('textbox',{name:'Texte du bloc',exact:true}).fill('blur,');
+  await page.getByRole('dialog',{name:'À éviter',exact:true}).getByRole('button',{name:'Terminé',exact:true}).click();
+  await page.getByRole('button',{name:'Terminé',exact:true}).click();
+  await page.reload();await page.getByRole('button',{name:'Prompt négatif',exact:true}).click();
+  await expect(page.getByLabel('Nom du bloc 1')).toHaveValue('À éviter');
+  await expect(page.getByRole('button',{name:'Modifier le texte de À éviter'})).toContainText('blur,');
+});
+
+test("voice assistant clearly awaits the model, retains a draft and never changes the prompt",async({page})=>{
+  await connect(page);await prompt(page,'keep this prompt');
+  await page.getByRole('button',{name:'Votre idée',exact:true}).click();
+  await page.getByRole('button',{name:'Assistant vocal',exact:true}).click();
+  const voice=page.getByRole('dialog',{name:'Assistant vocal',exact:true});
+  await expect(voice.getByText('Préparer les modèles sur le PC',{exact:true})).toBeVisible();
+  await expect(voice.getByRole('button',{name:'Dicter',exact:true})).toBeDisabled();
+  await voice.getByLabel('Décrivez votre idée').fill('Une robe rouge, des yeux bleus, un carré blanc.');
+  await expect(voice.getByRole('button',{name:'Proposer des tags',exact:true})).toBeDisabled();
+  await page.screenshot({path:'../verification/v0.13.0/voice-draft.png'});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await voice.getByRole('button',{name:'Fermer',exact:true}).click();
+  await expect(page.getByLabel('Prompt positif',{exact:true})).toHaveValue('keep this prompt');
+  await page.getByRole('button',{name:'Assistant vocal',exact:true}).click();
+  await expect(voice.getByLabel('Décrivez votre idée')).toHaveValue('Une robe rouge, des yeux bleus, un carré blanc.');
+});

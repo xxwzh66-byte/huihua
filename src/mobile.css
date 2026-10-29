@@ -1,0 +1,627 @@
+/* Native Android reserves system-bar and keyboard insets outside the WebView. */
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+.dialog-actions > button {
+  flex: 1 1 160px;
+  min-height: 44px;
+  justify-content: center;
+}
+dialog details > summary {
+  margin-bottom: 16px;
+}
+dialog .save-format {
+  margin-top: 16px;
+}
+dialog.model-dialog,
+dialog.lora-details {
+  background: var(--canvas, #fafafa);
+  color: var(--ink);
+}
+.model-dialog .model-card {
+  background: #f0f0f0;
+  border: 0;
+  padding: 8px;
+  gap: 8px;
+}
+.model-dialog .model-card.selected {
+  background: #e9e9e9;
+}
+.model-dialog .model-choice {
+  background: transparent;
+  min-width: 0;
+}
+.model-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: center;
+}
+.model-actions > button {
+  position: static;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 14px;
+}
+.studio-lora input.lora-toggle {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 36px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  flex: 0 0 36px;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden;
+}
+.studio-lora input.lora-toggle::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 1px 3px #3b3b3b2a;
+  transform: none;
+}
+.studio-lora input.lora-toggle:checked::after {
+  transform: translateX(14px);
+}
+.studio-quick-nav .quick-generate {
+  background: var(--accent);
+  color: white;
+  margin-top: 4px;
+}
+.app:has(.studio-quick-nav.on-right) .studio-section-heading {
+  padding-right: 24px;
+}
+.app:has(.studio-quick-nav.on-left) .studio-section-heading {
+  padding-left: 24px;
+}
+.app:has(.studio-quick-nav.on-right) .lora-heading {
+  padding-right: 20px;
+}
+.app:has(.studio-quick-nav.on-left) .lora-heading {
+  padding-left: 20px;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.result-actions > button {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 12px;
+  padding: 10px;
+}
+.gallery-card .selection-target {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+.gallery-card .selection-target:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -5px;
+}
+.batch-toolbar.batch-toolbar {
+  display: grid;
+  grid-template-columns: minmax(54px, 1fr) repeat(4, 40px);
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 22px;
+  max-width: calc(100vw - 24px);
+  box-shadow: 0 6px 24px #34343420;
+}
+.batch-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.batch-toolbar strong {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+.batch-toolbar strong small {
+  font-size: 10px;
+  font-weight: 500;
+}
+.batch-toolbar > button {
+  width: 40px;
+  height: 44px;
+  padding: 10px;
+  min-width: 0;
+  border-radius: 14px;
+  background: #fafafa;
+}
+.batch-toolbar [role="status"]:empty {
+  display: none;
+}
+.translation-dialog {
+  max-width: 520px;
+}
+.language-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 16px;
+  margin-block: 16px;
+}
+.language-options button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 8px;
+  background: #f0f0f0;
+  border-radius: 24px;
+}
+.language-options button[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.language-options img {
+  width: 100%;
+  max-width: 140px;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.language-options button > svg {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--accent);
+}
+.translation-dialog > label {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+}
+.translation-dialog textarea {
+  min-height: 90px;
+}
+.translation-languages {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  gap: 10px;
+  align-items: end;
+}
+.translation-languages label {
+  min-width: 0;
+}
+.translation-languages button {
+  padding: 10px;
+}
+.translation-dialog .translation-cellular {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.translation-cellular input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+.prompt-translate-button {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.prompt-editor.compact-editor .prompt-translate-button {
+  position: absolute;
+  top: 45px;
+  left: 12px;
+  font-size: 11px;
+  min-height: 26px;
+  padding: 3px 6px;
+}
+.studio-quick-nav.studio-quick-nav {
+  position: fixed;
+  top: 50%;
+  bottom: auto;
+  left: auto;
+  right: 3px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 38px;
+  height: auto;
+  justify-content: flex-start;
+  max-height: calc(100dvh - 2 * var(--dock-height) - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 22px;
+  background: #fafafaf2;
+  z-index: 24;
+}
+.studio-quick-nav.on-left {
+  right: auto;
+  left: 3px;
+}
+.studio-quick-nav button {
+  flex: 0 0 32px;
+}
+.studio-quick-nav .quick-nav-tooltip {
+  display: none;
+}
+.header-spark {
+  width: 36px;
+  height: 32px;
+  padding: 2px;
+}
+.header-spark img {
+  width: 32px;
+  height: 24px;
+  object-fit: contain;
+}
+.profile-list {
+  gap: 18px;
+}
+.profile-card.selected {
+  margin-bottom: 0;
+}
+.handedness-setting.handedness-setting {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  gap: 16px;
+}
+.handedness-setting strong,
+.handedness-setting small {
+  display: block;
+}
+.handedness-setting small {
+  margin-top: 5px;
+  font-size: 11px;
+}
+.biometric-settings .lock-now {
+  margin-top: 22px;
+  margin-bottom: 8px;
+}
+.studio-model .model-select > span > small {
+  color: #686868;
+}
+.prompt-editor.prompt-editor {
+  padding: 12px 16px;
+  overscroll-behavior: none;
+}
+.prompt-editor .modal-head {
+  margin-bottom: 4px;
+}
+.prompt-editor .autocomplete-setting {
+  margin: 6px 0;
+  min-height: 30px;
+}
+.prompt-editor .editor-paper {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 112px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+}
+.prompt-editor .editor-paper textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  line-height: 1.55;
+  font-size: 16px;
+  border-radius: 12px;
+  overflow: auto;
+}
+.prompt-editor .editor-paper[data-suggesting="true"] textarea {
+  padding-bottom: 88px;
+}
+.prompt-editor .editor-paper textarea:focus-visible {
+  outline: 2px solid #b4b4b4;
+  outline-offset: -2px;
+}
+.prompt-editor .editor-footer {
+  margin-top: 8px;
+  padding-top: 0;
+  background: var(--canvas);
+}
+.prompt-editor .editor-hint {
+  margin: 6px 0 0;
+}
+.prompt-editor .suggestion-bubble {
+  min-height: 0;
+  left: 10px;
+  right: 10px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.prompt-editor.compact-editor {
+  padding-block: 8px;
+}
+.prompt-editor.compact-editor .modal-head h2 {
+  font-size: 18px;
+}
+.prompt-editor.compact-editor .modal-head button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 6px;
+}
+.prompt-editor.compact-editor .autocomplete-setting {
+  min-height: 26px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+.prompt-editor.compact-editor .prompt-tools {
+  padding-bottom: 4px;
+  gap: 6px;
+}
+.prompt-editor.compact-editor .prompt-tools button {
+  min-height: 34px;
+  padding: 5px;
+  font-size: 11px;
+}
+.prompt-editor.compact-editor .prompt-tools svg {
+  width: 16px;
+  height: 16px;
+}
+.prompt-editor.compact-editor .editor-tabs button {
+  min-height: 36px;
+  padding: 5px;
+  font-size: 13px;
+  gap: 5px;
+}
+.prompt-editor.compact-editor .editor-footer button {
+  min-height: 38px;
+  height: 38px;
+  padding-block: 6px;
+}
+.prompt-editor.compact-editor .editor-footer {
+  margin-top: 6px;
+}
+.prompt-editor.compact-editor .suggestion-bubble {
+  padding: 6px;
+}
+.prompt-editor.compact-editor .suggestion-heading {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+.prompt-editor.compact-editor .tag-option {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+.prompt-editor.compact-editor .tag-option small {
+  display: none;
+}
+.prompt-editor.compact-editor .tag-suggestions {
+  gap: 4px;
+}
+@media (max-height: 370px) {
+  .prompt-editor.compact-editor {
+    overflow-y: auto;
+  }
+  .prompt-editor.compact-editor .editor-paper {
+    flex: 0 0 112px;
+  }
+  .prompt-editor.compact-editor .editor-hint {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .atelier-layout .render-panel {
+    grid-row: 1 / span 5;
+  }
+}
+.mochi-mascot {
+  position: relative;
+  width: min(240px, 64vw);
+  height: 190px;
+  margin: 36px auto 22px;
+  flex: none;
+}
+.mochi-body {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  transform-origin: center bottom;
+}
+.mochi-body img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.mochi-closed {
+  opacity: 0;
+}
+.mochi-shadow {
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  width: 80%;
+  height: 22px;
+  border-radius: 50%;
+  background: #a7a7a73b;
+  filter: blur(5px);
+}
+.lock-screen.lock-screen {
+  background: var(--canvas);
+}
+.lock-screen .mochi-mascot + h1 {
+  margin-top: 12px;
+  font-size: clamp(24px, 6vw, 32px);
+}
+.lock-screen > .primary {
+  margin: 16px 0;
+  min-width: 180px;
+}
+.startup-splash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.startup-splash h1 {
+  margin: 4px 0 20px;
+  color: var(--primary);
+  font-size: 38px;
+  letter-spacing: -1.5px;
+}
+.startup-progress {
+  width: 44px;
+  height: 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #dcdcdc;
+}
+.startup-progress::after {
+  content: "";
+  display: block;
+  height: 100%;
+  background: #7a7a7a;
+  transform-origin: left;
+  animation: mochi-progress 2.6s linear both;
+}
+.is-jumping .mochi-body {
+  animation: mochi-jump 2.6s ease-in-out both;
+}
+.is-jumping .mochi-shadow {
+  animation: mochi-shadow 2.6s ease-in-out both;
+}
+.is-jumping .mochi-open {
+  animation: mochi-eyes-open 2.6s step-end both;
+}
+.is-jumping .mochi-closed {
+  animation: mochi-eyes-closed 2.6s step-end both;
+}
+@keyframes mochi-jump {
+  0%,
+  10%,
+  85%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  22% {
+    transform: translateY(0) scale(1.09, 0.86);
+  }
+  34% {
+    transform: translateY(-42px) scale(0.95, 1.05);
+  }
+  44% {
+    transform: translateY(-56px) scale(1);
+  }
+  62% {
+    transform: translateY(0) scale(1.12, 0.83);
+  }
+  74% {
+    transform: translateY(-5px) scale(0.98, 1.02);
+  }
+}
+@keyframes mochi-shadow {
+  0%,
+  22%,
+  62%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  44% {
+    transform: scaleX(0.6);
+    opacity: 0.4;
+  }
+}
+@keyframes mochi-eyes-open {
+  0% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+  }
+  31% {
+    opacity: 1;
+  }
+  57% {
+    opacity: 0;
+  }
+  76%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes mochi-eyes-closed {
+  0% {
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  31% {
+    opacity: 0;
+  }
+  57% {
+    opacity: 1;
+  }
+  76%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes mochi-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-jumping .mochi-body,
+  .is-jumping .mochi-shadow,
+  .is-jumping .mochi-open,
+  .is-jumping .mochi-closed,
+  .startup-progress::after {
+    animation: none;
+  }
+}
+@media (max-height: 430px) {
+  .lock-screen .mochi-mascot {
+    width: 140px;
+    height: 110px;
+    margin: 8px auto;
+  }
+}
+
+.batch-toolbar strong small { color: #5a5a5a; }
+.app:has(.studio-quick-nav.on-right) .model-select { padding-right: 36px; }
+.app:has(.studio-quick-nav.on-left) .model-select { padding-left: 36px; }
+.app:has(.studio-quick-nav.on-right) .seed-tile > span { padding-right: 24px; }
