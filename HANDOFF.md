@@ -520,6 +520,9 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 ### 10.3 网络
 
 - `git push` 到 github.com:443 频繁失败：`send-pack: unexpected disconnect while reading sideband packet` / `Failed to connect ... port 443 after 21s` / `Recv failure: Connection was reset`。**解决方式是等 + 重试**（循环 6 次、每次间隔 20s，通常第 3-4 次成功）。诊断口诀：`Invoke-WebRequest https://github.com` 超时但 `https://api.github.com` 200 → 不是网络全断，是 github.com 被间歇阻断。
+- v1.15 实测有效的组合：`git config http.version HTTP/1.1` + `git config http.postBuffer 524288000`，然后重试。HTTP/2 下大包更容易在 `Recv failure` 直接断，降到 1.1 后一次过。
+- **push 成功后别只信 `git status -sb`**：`git ls-remote` 同样走 github.com，也会失败。用 API 核对远端 HEAD 才靠谱：`GET /repos/{repo}/commits/main` 看 `sha` 是否等于本地 `git rev-parse HEAD`。
+- **release 的 tag ref 会指向建 release 那一刻的 main**：先建 release 再 push 代码，tag 就落在旧 commit 上。补法：`PATCH /repos/{repo}/git/refs/tags/{tag}` 带 `{sha: <新 commit>, force: true}`，release 页面会自动跟着更新。
 - Node 侧 `fetch` 到 api.github.com 报 `unable to verify the first certificate`，设 `$env:NODE_TLS_REJECT_UNAUTHORIZED='0'` 可绕过。
 - `GET /releases/tags/{tag}` 返回的 `draft` 字段不可靠，改用 `/releases?per_page=20` 查列表再判断。
 
