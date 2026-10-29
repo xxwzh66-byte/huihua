@@ -523,6 +523,9 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 **还没在真机验证的**：CSP 加了 `ws:` 只在重新构建 APK 后生效，真 ComfyUI 上的 ws 进度与预览也还没实测。
 
+**构建与发布**：`dist-apk/huihua-1.16.0-arm64.apk`（75 204 351 字节，versionCode `11600`，SHA-256 `1717561e846eadb2173d5d96ee22b1cc7e693164212273291be39ef9ad0478d9`，签名证书与前几版同指纹）。构建顺序仍是 `npx vite build` → `_build/cargo_android.ps1` → `copy_so.ps1` → `gradle_assemble.ps1` → `apksigner`；嵌入校验：`dist/assets` 下 15 个文件全部出现在 `libhuihua_lib.so` 里。
+提交 `1843a8c`（feat(v1.16)…）+ `9e7ef75`（chore(release)），tag `v1.16.0` 指向 `1843a8c`，Release id `428033193`。
+
 ---
 
 ## 10. 已知的坑（都踩过）
