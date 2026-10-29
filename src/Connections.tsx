@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { type ObjectInfo, type Queue, type Stats, type Workflow as Graph } from "./api";
 import { version } from "../package.json";
-import { LockSettings } from "./AppLock";
 import LlmSettings from "./LlmSettings";
 import ServerResources from "./ServerResources";
 
@@ -327,20 +326,6 @@ export default function Connections({
               {tr("Connectez un serveur ComfyUI pour lire ses ressources.")}
             </p>
           )}
-        </div>
-      </details>
-
-      <details className="settings-group">
-        <summary>
-          <ShieldCheck />
-          <span>
-            <strong>{tr("Sécurité")}</strong>
-            <small>{tr("Biométrie et confidentialité")}</small>
-          </span>
-          <ChevronRight />
-        </summary>
-        <div className="settings-group-content">
-          <LockSettings />
         </div>
       </details>
 

@@ -33,6 +33,14 @@ const unavailable: LockState = {
 };
 const lockChanged = "pocket-lock-changed";
 let authenticationActive = false;
+/**
+ * v1.11 disables the biometric gate entirely: the security panel is gone from
+ * the settings, so nothing can configure or release a lock. The splash screen
+ * stays, and every state is coerced to "unlocked" so a phone that had enrolled
+ * biometrics before the upgrade is never trapped behind a lock screen it can no
+ * longer manage.
+ */
+const LOCK_ENFORCED = false;
 async function status() {
   const value = await native<LockState | null>("lock_status");
   if (!value && isTauri()) throw Error(tr("État du verrouillage indisponible"));
@@ -71,9 +79,12 @@ export function AppLock({ children }: { children: ReactNode }) {
     // without expiring an otherwise valid native session.
     const visible =
       value.enabled && document.hidden ? { ...value, unlocked: false } : value;
-    stateRef.current = visible;
-    setState(visible);
-    if (!visible.enabled || visible.unlocked) setOpened(true);
+    const effective = LOCK_ENFORCED
+      ? visible
+      : { ...visible, enabled: false, unlocked: true };
+    stateRef.current = effective;
+    setState(effective);
+    if (!effective.enabled || effective.unlocked) setOpened(true);
   }, []);
   const refresh = useCallback(async () => {
     if (authenticationActive || document.hidden) return;

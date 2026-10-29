@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, LoaderCircle, Sparkles, Square } from "lucide-react";
+import {
+  Check,
+  Copy,
+  LoaderCircle,
+  Sparkles,
+  Square,
+} from "lucide-react";
 import { Modal } from "./Modal";
 import { t, locale } from "./i18n";
 import type { Prompts } from "./promptLibrary";
@@ -10,7 +16,7 @@ import {
   type PromptProposal,
 } from "./promptOptimizer";
 import { createAdapter } from "./llmAdapter";
-import { llmGet, llmReady, type LlmView } from "./llm";
+import { llmChat, llmGet, llmReady, type LlmView } from "./llm";
 import {
   readTemplates,
   renderTemplate,
@@ -66,6 +72,9 @@ export default function PromptAssistant({
   const [templates] = useState<PromptTemplate[]>(() => readTemplates());
   const [templateId, setTemplateId] = useState("");
   const [fields, setFields] = useState<Record<string, string>>({});
+  const [quick, setQuick] = useState("");
+  const [output, setOutput] = useState("");
+  const [copied, setCopied] = useState("");
   const request = useRef<AbortController | null>(null);
   const busy = phase === "optimizing";
   const template = templates.find((item) => item.id === templateId) ?? null;
@@ -134,6 +143,88 @@ export default function PromptAssistant({
       }
     } finally {
       if (request.current === controller) request.current = null;
+    }
+  }
+  /**
+   * Free-form generation: one model call, raw text back, copied with one tap.
+   * Separate from `run()` because the review flow is only useful when the model
+   * answers in the block JSON contract.
+   */
+  async function generate() {
+    if (request.current || busy || !ready) return;
+    const source = quick.trim();
+    if (!source) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setError("");
+    setPhase("optimizing");
+    try {
+      const system = template
+        ? [
+            renderTemplate(template, fields),
+            template.systemPrompt,
+            "Answer with the final prompt only, no explanation.",
+          ]
+            .filter((part) => part && part.trim())
+            .join("\n\n")
+        : [
+            "You write Danbooru-style image prompts for Stable Diffusion.",
+            "Answer with the final prompt only: lowercase english tags, comma separated, no explanations.",
+            "At most 60 tags.",
+          ].join(" ");
+      const reply = await llmChat(
+        [
+          { role: "system", content: system },
+          {
+            role: "user",
+            content: `${template ? "Scene: " : ""}${source}`,
+          },
+        ],
+        false,
+      );
+      if (controller.signal.aborted) return;
+      setOutput(reply.content.trim().slice(0, 8000));
+      setCopied("");
+      setPhase("idle");
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setError(
+          t("La génération a échoué. Votre saisie est conservée.") +
+            (error instanceof Error ? ` ${error.message}` : ""),
+        );
+        setPhase("idle");
+      }
+    } finally {
+      if (request.current === controller) request.current = null;
+    }
+  }
+  async function copy(text: string, tag: string) {
+    if (!text) return;
+    const legacy = () => {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.top = "-1000px";
+      document.body.appendChild(area);
+      area.select();
+      area.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      area.remove();
+      if (!ok) throw new Error("copy");
+    };
+    try {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          legacy();
+        }
+      } else legacy();
+      setCopied(tag);
+      setTimeout(() => setCopied(""), 1800);
+    } catch {
+      setError(t("La copie automatique est indisponible sur cet appareil."));
     }
   }
   return (
@@ -260,6 +351,71 @@ export default function PromptAssistant({
           {t("Proposer des tags")}
         </button>
       </div>
+      <section className="assistant-quick">
+        <h3>{t("Génération directe")}</h3>
+        <p>
+          {t(
+            "Une seule réponse, en texte : copiez-la ou insérez-la dans le prompt.",
+          )}
+        </p>
+        <label>
+          {t("Décrivez la scène")}
+          <textarea
+            disabled={busy}
+            maxLength={2000}
+            value={quick}
+            placeholder={t(
+              "Une rue de Tokyo sous la pluie, néons roses, reflets sur l’asphalte…",
+            )}
+            onChange={(e) => setQuick(e.target.value)}
+          />
+        </label>
+        <div className="assistant-actions">
+          <button
+            className="primary"
+            disabled={!ready || busy || !quick.trim()}
+            onClick={() => void generate()}
+          >
+            <Sparkles size={18} />
+            {t("Générer le prompt")}
+          </button>
+        </div>
+        {output && (
+          <div className="assistant-output">
+            <div className="assistant-output-head">
+              <span>{t("Prompt généré")}</span>
+              <button
+                type="button"
+                className="assistant-copy"
+                onClick={() => void copy(output, "output")}
+              >
+                {copied === "output" ? (
+                  <Check size={15} />
+                ) : (
+                  <Copy size={15} />
+                )}
+                {copied === "output" ? t("Copié") : t("Copier")}
+              </button>
+            </div>
+            <pre>{output}</pre>
+            <div className="assistant-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  const current = values[side].trim();
+                  onChange({
+                    ...values,
+                    [side]: current ? `${current}, ${output}` : output,
+                  });
+                  onClose();
+                }}
+              >
+                {t("Insérer dans le prompt")}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
       {busy && (
         <div className="assistant-progress" role="status">
           <LoaderCircle className="spin" size={20} />

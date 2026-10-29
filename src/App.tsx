@@ -54,6 +54,8 @@ import { importImage, resolveImport, type Imported } from "./metadata";
 import { Picture, clearImageCache, type ViewItem } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
 import WorkflowCanvas from "./WorkflowCanvas";
+import WorkflowShelf from "./WorkflowShelf";
+import { autoBind, resolveGraph } from "./workflowBindings";
 import SettingsPanel from "./SettingsPanel";
 import StudioNav from "./StudioNav";
 import mochiHeader from "../assets/brand/expressions/open.webp";
@@ -336,7 +338,9 @@ export default function App() {
         if (mode === "workflow") {
           if (!custom)
             throw new Error(tr("Importez et validez un workflow API."));
-          builds.push({ workflow: custom });
+          // Placeholders (`{{prompt}}`, `{{sampler}}`…) are resolved here so the
+          // automatic settings drive the imported graph at submit time.
+          builds.push({ workflow: resolveGraph(custom, settings), settings });
           continue;
         }
         if (!modelChoices(info).includes(settings.model))
@@ -655,9 +659,18 @@ export default function App() {
       } else {
         const w = parseWorkflow(await file.text());
         if (version !== generation.current) return;
-        setCustom(w);
-        setCustomText(JSON.stringify(w, null, 2));
+        // Fresh imports are wired to the automatic settings straight away:
+        // prompts, sampler, steps, CFG, size and the checkpoint become
+        // placeholders, so the Atelier keeps driving the graph.
+        const bound = autoBind(w);
+        setCustom(bound.graph);
+        setCustomText(JSON.stringify(bound.graph, null, 2));
         setMode("workflow");
+        setNotice(
+          bound.bound.length
+            ? tr("{0} 个参数已联动到自动设置。", [bound.bound.length])
+            : tr("工作流已导入。"),
+        );
       }
     } catch (e) {
       if (version === generation.current) setError(String(e));
@@ -904,7 +917,7 @@ export default function App() {
               <p className="muted">
                 {" "}
                 {tr(
-                  "Modifiez les nœuds du graphe directement : modèles, prompts, dimensions, sampler. Le mode automatique n’affecte pas ce graphe.",
+                  "导入 ComfyUI 的 API 工作流后可以直接改参数。用占位符（如 {{sampler}}、{{prompt}}）把字段交给自动模式，生成时会自动填入。",
                 )}{" "}
               </p>
               <div className="workflow-toolbar">
@@ -934,10 +947,22 @@ export default function App() {
                   </button>
                 </div>
               </div>
+              <WorkflowShelf
+                graph={custom}
+                onLoad={(next, name) => {
+                  setCustom(next);
+                  setCustomText(JSON.stringify(next, null, 2));
+                  setMode("workflow");
+                  setNotice(tr("已载入「{0}」。", [name]));
+                }}
+                onMessage={notify}
+                onError={setError}
+              />
               {custom && graphView === "visual" ? (
                 <WorkflowCanvas
                   graph={custom}
                   info={info}
+                  settings={settings}
                   onChange={(next) => {
                     setCustom(next);
                     setCustomText(JSON.stringify(next, null, 2));
@@ -959,22 +984,45 @@ export default function App() {
                       }}
                     />
                   </label>
-                  <button
-                    onClick={() => {
-                      try {
-                        const w = parseWorkflow(customText);
-                        checkWorkflow(w, info);
-                        setCustom(w);
-                        setNotice(tr("Workflow validé sur ce serveur."));
-                        setError("");
-                      } catch (e) {
-                        setError(String(e));
-                      }
-                    }}
-                  >
-                    {" "}
-                    {tr("Valider les modifications")}{" "}
-                  </button>
+                  <div className="workflow-toolbar">
+                    <button
+                      onClick={() => {
+                        try {
+                          const w = parseWorkflow(customText);
+                          checkWorkflow(w, info);
+                          setCustom(w);
+                          setNotice(tr("Workflow validé sur ce serveur."));
+                          setError("");
+                        } catch (e) {
+                          setError(String(e));
+                        }
+                      }}
+                    >
+                      {" "}
+                      {tr("Valider les modifications")}{" "}
+                    </button>
+                    <button
+                      onClick={() => {
+                        try {
+                          const w = parseWorkflow(customText);
+                          const bound = autoBind(w);
+                          setCustom(bound.graph);
+                          setCustomText(JSON.stringify(bound.graph, null, 2));
+                          setNotice(
+                            tr("{0} 个参数已联动到自动设置。", [
+                              bound.bound.length,
+                            ]),
+                          );
+                          setError("");
+                        } catch (e) {
+                          setError(String(e));
+                        }
+                      }}
+                    >
+                      {" "}
+                      {tr("联动到自动设置")}{" "}
+                    </button>
+                  </div>
                 </>
               )}
             </CollapsibleCard>

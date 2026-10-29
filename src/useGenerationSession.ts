@@ -76,7 +76,19 @@ export function useGenerationSession(
         const done = new Set<string>(),
           found: ViewItem[] = [];
         let failed = false;
+        let live = "";
         for (const { id, entry } of histories) {
+          /*
+           * PreviewImage / SaveImage nodes emit `temp` images while the job is
+           * still running, and hand-imported workflows often only have those.
+           * Feed the newest one to the Atelier preview so the render panel
+           * follows the workflow's own preview node.
+           */
+          if (entry && !entry.status?.completed) {
+            for (const output of Object.values(entry.outputs ?? {}))
+              for (const image of output.images ?? [])
+                if (image.type !== "output") live = imagePath(image);
+          }
           if (
             entry?.status?.completed ||
             entry?.status?.status_str === "error"
@@ -115,6 +127,7 @@ export function useGenerationSession(
             }
           } else missing.current.delete(id);
         }
+        if (live) setPreview(live);
         if (done.size) {
           const remaining = jobsRef.current.filter((id) => !done.has(id));
           track(remaining, server);

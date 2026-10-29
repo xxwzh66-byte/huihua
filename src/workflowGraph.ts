@@ -184,9 +184,17 @@ export type Edge = {
   field: string;
 };
 
-export const CARD_WIDTH = 252;
-export const CARD_GAP_X = 96;
-export const CARD_GAP_Y = 26;
+export const CARD_WIDTH = 208;
+export const CARD_GAP_X = 64;
+export const CARD_GAP_Y = 20;
+
+export type LayoutOptions = {
+  width?: number;
+  gapX?: number;
+  gapY?: number;
+  minHeight?: number;
+  collapsedHeight?: number;
+};
 
 /**
  * Layered left-to-right layout: a node sits one column after its deepest
@@ -196,14 +204,20 @@ export const CARD_GAP_Y = 26;
 export function layoutGraph(
   graph: Workflow,
   heights: Record<string, number> = {},
+  options: LayoutOptions = {},
 ): {
   nodes: Placed[];
   edges: Edge[];
   width: number;
   height: number;
+  cardWidth: number;
 } {
+  const cardWidth = options.width ?? CARD_WIDTH;
+  const gapX = options.gapX ?? CARD_GAP_X;
+  const gapY = options.gapY ?? CARD_GAP_Y;
+  const minHeight = options.minHeight ?? 150;
   const heightOf = (id: string) =>
-    Math.max(96, Math.round(heights[id] ?? 150));
+    Math.max(options.collapsedHeight ?? 64, Math.round(heights[id] ?? minHeight));
   const ids = Object.keys(graph);
   const deps = new Map<string, string[]>();
   const edges: Edge[] = [];
@@ -254,19 +268,19 @@ export function layoutGraph(
         id,
         depth: column,
         row,
-        x: column * (CARD_WIDTH + CARD_GAP_X),
+        x: column * (cardWidth + gapX),
         y,
       });
-      y += heightOf(id) + CARD_GAP_Y;
+      y += heightOf(id) + gapY;
     });
-    tallest = Math.max(tallest, y - CARD_GAP_Y);
+    tallest = Math.max(tallest, y - gapY);
   }
   return {
     nodes,
     edges,
     width:
-      ordered.length * CARD_WIDTH +
-      Math.max(0, ordered.length - 1) * CARD_GAP_X,
+      ordered.length * cardWidth + Math.max(0, ordered.length - 1) * gapX,
     height: Math.max(150, tallest),
+    cardWidth,
   };
 }

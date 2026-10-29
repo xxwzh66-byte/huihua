@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { t } from "./i18n";
 import LanguagePicker from "./LanguagePicker";
-import { LockSettings } from "./AppLock";
 import mascot from "../assets/brand/expressions/open.webp";
 import {
   ArrowLeft,
@@ -44,7 +43,7 @@ export default function Onboarding({
     t("Bienvenue dans 绘画"),
     t("ComfyUI fait la magie"),
     t("Un atelier à votre main"),
-    t("Votre espace privé"),
+    t("Des workflows à votre façon"),
     t("Votre première création"),
   ];
   return (
@@ -145,11 +144,28 @@ export default function Onboarding({
       {step === 3 && (
         <>
           <p>
-            {t("Protégez l’accès à 绘画 avec la biométrie de votre téléphone. Vous choisissez le délai de verrouillage après une absence.")}
+            {t("导入你自己在 ComfyUI 里搭好的 API 工作流：节点、模型和连线都保留，改完可以保存到本机。")}
           </p>
-          <LockSettings />
+          <div className="first-run-feature">
+            <Sparkles />
+            <div>
+              <h2>{t("可视化编辑")}</h2>
+              <p>
+                {t("工作流按依赖顺序逐行展开，每个节点一张卡片，手机上也能看清每一项参数。")}
+              </p>
+            </div>
+          </div>
+          <div className="first-run-feature">
+            <Server />
+            <div>
+              <h2>{t("自动联动")}</h2>
+              <p>
+                {t("把采样器、步数、提示词换成占位符，工作流就会跟着自动模式的设置走。")}
+              </p>
+            </div>
+          </div>
           <div className="first-run-note">
-            {t("Les images restent sur votre serveur. Les captures d’écran sont autorisées. Si la biométrie est indisponible, vous pouvez continuer sans l’activer.")}
+            {t("工作流只保存在这台设备上，不会上传到任何服务器。")}
           </div>
         </>
       )}
