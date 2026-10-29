@@ -267,11 +267,13 @@ export default function GalleryGrid({
             <div className="gallery-caption">
               <strong>{item.name}</strong>
               <small>
-                {new Date(item.modified).toLocaleDateString(locale(), {
-                  day: "numeric",
-                  month: "short",
-                })}{" "}
-                · {item.folder}
+                {item.modified > 0
+                  ? `${new Date(item.modified).toLocaleDateString(locale(), {
+                      day: "numeric",
+                      month: "short",
+                    })} · `
+                  : ""}
+                {item.folder || tr("sorties")}
               </small>
             </div>
           </article>

@@ -1,4 +1,4 @@
-# 绘画 1.1.1
+# 绘画 1.1.2
 
 绘画（huihua）是一个 ComfyUI 的 Android 客户端：在手机上写提示词、调参数、看实时进度，把出图的算力留给你的 ComfyUI 服务器。
 
@@ -9,7 +9,8 @@
 - **直连 ComfyUI**：输入 `http://` 或 `https://` 的 ComfyUI 地址即可，走 ComfyUI 原生 `/api/*` 接口。
 - **实时进度**：轮询队列与历史，显示每一步的进度、预览图和耗时。
 - **提示词助手**：Danbooru 标签联想、权重编辑、中英互译、本地词库搜索。
-- **AI 生成提示词**：在「设置 → 生成 API」里填入任意 OpenAI 兼容接口（OpenAI / DeepSeek / Ollama / SiliconFlow 或自建），描述一句话即可生成提示词，结果可一键复制。
+- **提示词独立成页**：底部导航自带「提示词」按钮。在「设置 → 生成 API」里填入任意 OpenAI 兼容接口（OpenAI / DeepSeek / Ollama / SiliconFlow 或自建），写一句描述就能直接出标签，结果一键复制，或一键填入工坊的正 / 负向提示词。
+- **注入模板可查看可改**：每次请求真正发给 API 的 system 指令可以展开查看、就地修改、保存到本机，编辑区实时预览 `system:` 与 `user:` 两段实际内容。
 - **skill 模板**：把带 `SKILL.md` + `data/*.csv` 的 skill 文件夹拖进设置页，CSV 的第一列自动变成可选参数，模板会被注入到生成提示词的系统提示里。
 - **可视化工作流**：导入 ComfyUI 的 API 格式 JSON，用一张从上到下的紧凑流水线卡片看节点，参数字段直接改；保存到本机的工作流库随时再载入。
 - **占位符联动**：模型 / 提示词 / 尺寸 / 采样器 / 种子等参数可以换成 `{{prompt}}`、`{{sampler}}` 这样的占位符，生成时自动用「自动设置」里的值替换，也可以一键把工作流的真实值反向同步回自动设置。
@@ -26,17 +27,28 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
+| 1.1.2 | arm64-v8a | 73.6 MB | [huihua-1.1.2-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.2/huihua-1.1.2-arm64.apk) |
 | 1.1.1 | arm64-v8a | 73.6 MB | [huihua-1.1.1-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.1/huihua-1.1.1-arm64.apk) |
 | 1.1.0 | arm64-v8a | 73.6 MB | [huihua-1.1.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.0/huihua-1.1.0-arm64.apk) |
 | 1.0.0 | arm64-v8a | 71.0 MB | [huihua-1.0.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.0.0/huihua-1.0.0-arm64.apk) |
 
 ```bash
-adb install huihua-1.1.1-arm64.apk
+adb install huihua-1.1.2-arm64.apk
 ```
 
-安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。1.0.0 / 1.1.0 / 1.1.1 使用同一签名证书，可以直接覆盖升级。
+安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 使用同一签名证书，可以直接覆盖升级。
 
 ## 更新内容
+
+### 1.1.2
+
+- 底部导航新增「提示词」页：独立输入框，写一句描述就能让配好的 AI 接口直接返回 Danbooru 标签。
+- 生成结果支持一键复制（带失败降级），并保留最近 30 条历史，可单条删除或整清空。
+- 结果可直接「填入工坊正向提示词」或「填入负向提示词」，点完自动跳回工坊。
+- 新增「查看 / 修改注入模板」：能看到每次请求真正发给 API 的 system 指令，可编辑并保存到本机，没选模板时改的是全局默认指令。
+- 编辑区实时预览 `system:` 与 `user:` 两段实际发送内容，并带「填入默认指令」「恢复默认」。
+- 修正作品集日期：历史记录没有时间戳时不再显示 1970/1/1，改为显示所在文件夹（空文件夹显示「输出」）。
+- 提示词页与工作流占位符共用同一份模板存储，导入的 skill 模板可以直接选。
 
 ### 1.1.1
 

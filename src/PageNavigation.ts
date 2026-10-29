@@ -6,7 +6,13 @@ import {
   type PointerEvent,
   type MouseEvent,
 } from "react";
-export const pages = ["create", "gallery", "glossary", "connect"] as const;
+export const pages = [
+  "create",
+  "prompt",
+  "gallery",
+  "glossary",
+  "connect",
+] as const;
 export type Page = (typeof pages)[number];
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export function usePageNavigation() {

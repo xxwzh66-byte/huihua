@@ -26,6 +26,7 @@ import {
   Trash2,
   Upload,
   ChevronDown,
+  Wand2,
 } from "lucide-react";
 import {
   api,
@@ -62,6 +63,7 @@ import mochiHeader from "../assets/brand/expressions/open.webp";
 import Connections from "./Connections";
 const Glossary = lazy(() => import("./Glossary"));
 const Viewer = lazy(() => import("./Viewer"));
+const PromptStudio = lazy(() => import("./PromptStudio"));
 import { rememberPrompt } from "./promptLibrary";
 import Presets from "./Presets";
 import { usePageNavigation, pages, type Page } from "./PageNavigation";
@@ -712,6 +714,28 @@ export default function App() {
       }),
     [],
   );
+  const insertPrompt = useCallback(
+    (text: string, side: "positive" | "negative") => {
+      const block = text.trim();
+      if (!block) return;
+      setSettings((s) => {
+        const current = s[side].trim().replace(/,\s*$/, "");
+        return {
+          ...s,
+          [side]: current ? `${current}, ${block}` : block,
+        };
+      });
+      setTab("create");
+      setNotice(
+        tr(
+          side === "positive"
+            ? "提示词已填入工坊的正向提示词。"
+            : "提示词已填入负向提示词。",
+        ),
+      );
+    },
+    [setTab],
+  );
   const renderPage = (tab: Page, active: boolean) => (
     <>
       <div className="page-heading">
@@ -720,6 +744,7 @@ export default function App() {
             {
               {
                 create: tr("Votre imagination,"),
+                prompt: tr("Le prompt juste."),
                 gallery: tr("Vos petits mondes"),
                 glossary: tr("Le mot juste."),
                 connect: tr("Paramètres"),
@@ -730,6 +755,7 @@ export default function App() {
             {
               {
                 create: tr("La puissance du serveur. La liberté du mobile."),
+                prompt: tr("Une phrase, et l’API écrit les tags."),
                 gallery: tr("Vos créations, autant d’idées à retrouver."),
                 glossary: tr("Un glossaire Danbooru pour guider vos idées."),
                 connect: tr("Votre serveur, vos préférences, votre espace."),
@@ -757,6 +783,21 @@ export default function App() {
           }
         >
           <Glossary onNotice={notify} onAdd={addTags} />
+        </Suspense>
+      )}
+      {tab === "prompt" && (
+        <Suspense
+          fallback={
+            <div
+              className="section-skeleton"
+              aria-label={tr("Ouverture de la page prompt")}
+            />
+          }
+        >
+          <PromptStudio
+            onInsert={insertPrompt}
+            onOpenSettings={() => setTab("connect")}
+          />
         </Suspense>
       )}
       {tab === "connect" && !setupDone && (
@@ -1460,6 +1501,7 @@ export default function App() {
           {(
             [
               { id: "create", label: tr("Atelier"), icon: SlidersHorizontal },
+              { id: "prompt", label: tr("提示词"), icon: Wand2 },
               { id: "gallery", label: tr("Galerie"), icon: Images },
               { id: "glossary", label: tr("Glossaire"), icon: BookOpen },
               { id: "connect", label: tr("Paramètres"), icon: Settings2 },

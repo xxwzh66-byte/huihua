@@ -19,8 +19,44 @@ export type PromptTemplate = {
 };
 
 const STORE = "prompt-templates-v1";
+const DEFAULT_STORE = "prompt-default-system-v1";
 export const TEMPLATE_LIMIT = 100;
 const FIELD_LIMIT = 40_000;
+
+/**
+ * The instruction sent to the API when no template is selected. Editable, so
+ * the user can see and rewrite exactly what leaves the device.
+ */
+export const FALLBACK_SYSTEM = [
+  "You write Danbooru-style image prompts for Stable Diffusion.",
+  "Answer with the final prompt only: lowercase english tags, comma separated, no explanations.",
+  "At most 60 tags.",
+].join(" ");
+
+export function readDefaultSystem(): string {
+  try {
+    const value = localStorage.getItem(DEFAULT_STORE);
+    return typeof value === "string" ? value.slice(0, FIELD_LIMIT) : "";
+  } catch {
+    return "";
+  }
+}
+
+/** The custom instruction when set, otherwise the built-in one. */
+export function defaultSystem(): string {
+  const custom = readDefaultSystem().trim();
+  return custom || FALLBACK_SYSTEM;
+}
+
+export function saveDefaultSystem(text: string) {
+  const value = text.trim().slice(0, FIELD_LIMIT);
+  try {
+    if (value) localStorage.setItem(DEFAULT_STORE, value);
+    else localStorage.removeItem(DEFAULT_STORE);
+  } catch {
+    throw new Error(tr("Impossible d’enregistrer ce modèle sur l’appareil."));
+  }
+}
 
 function isParam(value: unknown): value is TemplateParam {
   if (!value || typeof value !== "object") return false;

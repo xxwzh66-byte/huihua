@@ -1,0 +1,422 @@
+.prompt-studio {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+
+.prompt-studio .studio-block {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prompt-studio .studio-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prompt-studio .studio-block-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.prompt-studio .studio-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.prompt-studio .studio-link:hover {
+  border-color: #c9c9c9;
+}
+
+.prompt-studio .studio-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.prompt-studio .studio-hint.warning {
+  color: #8a5a00;
+  background: #fff8e6;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.prompt-studio .studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--muted);
+}
+
+.prompt-studio .studio-field select,
+.prompt-studio .studio-field input,
+.prompt-studio .studio-field textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.prompt-studio .studio-field textarea {
+  min-height: 110px;
+}
+
+.prompt-studio .studio-field select:focus,
+.prompt-studio .studio-field input:focus,
+.prompt-studio .studio-field textarea:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: -1px;
+}
+
+.prompt-studio .studio-params {
+  display: grid;
+  gap: 10px;
+}
+
+.prompt-studio .studio-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.prompt-studio .studio-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.prompt-studio .studio-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 550;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.prompt-studio .studio-actions button.primary {
+  flex: 1;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.prompt-studio .studio-actions button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.prompt-studio .studio-model {
+  font-size: 11.5px;
+  color: var(--muted);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-studio .studio-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.prompt-studio .studio-error {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #a11212;
+  background: #fff1f1;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.prompt-studio .studio-output {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f7f7f7;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 46vh;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.prompt-studio .studio-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prompt-studio .studio-history li {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.prompt-studio .studio-history-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+}
+
+.prompt-studio .studio-history-body:hover {
+  border-color: #c9c9c9;
+}
+
+.prompt-studio .studio-history-body span {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.prompt-studio .studio-history-body small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.prompt-studio .studio-history-copy {
+  width: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 420px) {
+  .prompt-studio .studio-block {
+    padding: 15px;
+    border-radius: 17px;
+  }
+}
+
+.prompt-studio .studio-instruction-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  background: #fafafa;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.prompt-studio .studio-instruction-toggle[aria-expanded="true"] {
+  border-style: solid;
+  border-color: #c9c9c9;
+  background: #fff;
+}
+
+.prompt-studio .studio-notice {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #14532d;
+  background: #f0fdf4;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.instruction-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid var(--line);
+}
+
+.instruction-editor .instruction-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.instruction-editor .instruction-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--muted);
+}
+
+.instruction-editor .instruction-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.instruction-editor .instruction-field textarea:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: -1px;
+}
+
+.instruction-editor .instruction-vars {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.instruction-editor .instruction-vars code {
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--ink);
+}
+
+.instruction-editor .instruction-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.instruction-editor .instruction-preview strong {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.instruction-editor .instruction-preview pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 30vh;
+  overflow: auto;
+}
+
+.instruction-editor .instruction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.instruction-editor .instruction-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.instruction-editor .instruction-actions button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.instruction-editor .instruction-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.instruction-editor .instruction-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
