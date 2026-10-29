@@ -53,6 +53,7 @@ import {
 import { importImage, resolveImport, type Imported } from "./metadata";
 import { Picture, clearImageCache, type ViewItem } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
+import WorkflowCanvas from "./WorkflowCanvas";
 import SettingsPanel from "./SettingsPanel";
 import StudioNav from "./StudioNav";
 import mochiHeader from "../assets/brand/expressions/open.webp";
@@ -170,6 +171,7 @@ export default function App() {
   const [custom, setCustom] = useState<Workflow | null>(null),
     [customText, setCustomText] = useState(""),
     [mode, setMode] = useState<"simple" | "workflow">("simple"),
+    [graphView, setGraphView] = useState<"visual" | "json">("visual"),
     [imported, setImported] = useState<Imported | null>(null);
   const submitLock = useRef(false),
     generation = useRef(0),
@@ -778,6 +780,9 @@ export default function App() {
           stats={stats}
           queue={queue}
           online={online}
+          info={info}
+          workflow={mode === "workflow" ? custom : null}
+          onMessage={notify}
           onOpen={(target) => {
             setTab("create");
             if (target === "workflow") setMode("workflow");
@@ -895,53 +900,83 @@ export default function App() {
               />
             </div>
           ) : (
-            <CollapsibleCard title="Workflow API">
+            <CollapsibleCard title={tr("Workflow API")}>
               <p className="muted">
                 {" "}
                 {tr(
-                  "Conservez les nœuds, modèles et réglages d’un workflow ComfyUI complet. Les champs du mode automatique ne modifient pas ce graphe.",
+                  "Modifiez les nœuds du graphe directement : modèles, prompts, dimensions, sampler. Le mode automatique n’affecte pas ce graphe.",
                 )}{" "}
               </p>
-              <label className="file-picker">
-                <FolderOpen size={19} /> {tr("Importer un workflow API")}{" "}
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  onChange={(e) => {
-                    void importFile(e.target.files?.[0], "workflow");
-                    e.target.value = "";
+              <div className="workflow-toolbar">
+                <label className="file-picker">
+                  <FolderOpen size={19} /> {tr("Importer un workflow API")}{" "}
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={(e) => {
+                      void importFile(e.target.files?.[0], "workflow");
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <div className="segmented">
+                  <button
+                    aria-pressed={graphView === "visual"}
+                    onClick={() => setGraphView("visual")}
+                  >
+                    {tr("Vue visuelle")}
+                  </button>
+                  <button
+                    aria-pressed={graphView === "json"}
+                    onClick={() => setGraphView("json")}
+                  >
+                    JSON
+                  </button>
+                </div>
+              </div>
+              {custom && graphView === "visual" ? (
+                <WorkflowCanvas
+                  graph={custom}
+                  info={info}
+                  onChange={(next) => {
+                    setCustom(next);
+                    setCustomText(JSON.stringify(next, null, 2));
                   }}
+                  onMessage={(text) => notify(text)}
                 />
-              </label>
-              <label>
-                Workflow JSON
-                <textarea
-                  className="code-editor"
-                  rows={14}
-                  spellCheck={false}
-                  value={customText}
-                  onChange={(e) => {
-                    setCustomText(e.target.value);
-                    setCustom(null);
-                  }}
-                />
-              </label>
-              <button
-                onClick={() => {
-                  try {
-                    const w = parseWorkflow(customText);
-                    checkWorkflow(w, info);
-                    setCustom(w);
-                    setNotice(tr("Workflow validé sur ce serveur."));
-                    setError("");
-                  } catch (e) {
-                    setError(String(e));
-                  }
-                }}
-              >
-                {" "}
-                {tr("Valider les modifications")}{" "}
-              </button>
+              ) : (
+                <>
+                  <label>
+                    Workflow JSON
+                    <textarea
+                      className="code-editor"
+                      rows={14}
+                      spellCheck={false}
+                      value={customText}
+                      onChange={(e) => {
+                        setCustomText(e.target.value);
+                        setCustom(null);
+                      }}
+                    />
+                  </label>
+                  <button
+                    onClick={() => {
+                      try {
+                        const w = parseWorkflow(customText);
+                        checkWorkflow(w, info);
+                        setCustom(w);
+                        setNotice(tr("Workflow validé sur ce serveur."));
+                        setError("");
+                      } catch (e) {
+                        setError(String(e));
+                      }
+                    }}
+                  >
+                    {" "}
+                    {tr("Valider les modifications")}{" "}
+                  </button>
+                </>
+              )}
             </CollapsibleCard>
           )}
           <div className="studio-imports">

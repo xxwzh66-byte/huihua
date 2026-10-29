@@ -16,10 +16,13 @@ import {
   Download,
   Cpu,
   MemoryStick,
+  Sparkles,
 } from "lucide-react";
-import { type Stats, type Queue } from "./api";
+import { type ObjectInfo, type Queue, type Stats, type Workflow as Graph } from "./api";
 import { version } from "../package.json";
 import { LockSettings } from "./AppLock";
+import LlmSettings from "./LlmSettings";
+import ServerResources from "./ServerResources";
 
 type Props = {
   quickMenu: boolean;
@@ -35,7 +38,10 @@ type Props = {
   stats: Stats | null;
   queue: Queue;
   online: boolean;
+  info: ObjectInfo | null;
+  workflow: Graph | null;
   onOpen: (target: "models" | "workflow" | "presets") => void;
+  onMessage: (text: string) => void;
 };
 
 const memory = (value?: number) =>
@@ -60,7 +66,10 @@ export default function Connections({
   stats,
   queue,
   online,
+  info,
+  workflow,
   onOpen,
+  onMessage,
 }: Props) {
   const [address, setAddress] = useState(server);
   const [working, setWorking] = useState(false);
@@ -284,6 +293,40 @@ export default function Connections({
               <ChevronRight />
             </button>
           </section>
+        </div>
+      </details>
+
+      <details className="settings-group">
+        <summary>
+          <Sparkles />
+          <span>
+            <strong>{tr("API de génération")}</strong>
+            <small>{tr("Assistant de prompt et modèles skill")}</small>
+          </span>
+          <ChevronRight />
+        </summary>
+        <div className="settings-group-content">
+          <LlmSettings onMessage={onMessage} onError={onError} />
+        </div>
+      </details>
+
+      <details className="settings-group">
+        <summary>
+          <Cpu />
+          <span>
+            <strong>{tr("Ressources du serveur")}</strong>
+            <small>{tr("Modèles, encodeurs et VAE disponibles")}</small>
+          </span>
+          <ChevronRight />
+        </summary>
+        <div className="settings-group-content">
+          {info ? (
+            <ServerResources info={info} workflow={workflow} />
+          ) : (
+            <p className="resources-empty">
+              {tr("Connectez un serveur ComfyUI pour lire ses ressources.")}
+            </p>
+          )}
         </div>
       </details>
 

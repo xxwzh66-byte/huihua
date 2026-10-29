@@ -14,10 +14,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Self update straight from the GitHub release feed.
+ *
+ * The APK asset name, the download URL and the sha256 digest are all pinned to
+ * this repository, so a compromised or spoofed release page can only ever offer
+ * a file whose digest matches what the release metadata claims.
+ */
 internal class AppUpdates(private val activity: Activity) {
     private val worker = Executors.newSingleThreadExecutor()
     private val folder = File(activity.cacheDir, "updates").apply { mkdirs() }
-    private val apk = File(folder, "mochi.apk")
+    private val apk = File(folder, "huihua.apk")
     private val meta = File(folder, "release.json")
     private val cancel = AtomicBoolean(false)
     @Volatile private var phase = "idle"
@@ -60,6 +67,7 @@ internal class AppUpdates(private val activity: Activity) {
             .put("canInstall", activity.packageManager.canRequestPackageInstalls())
     }
 
+    /** Latest release always wins; notes travel with it so the UI can show them. */
     @Synchronized
     fun check() {
         if (phase in listOf("checking", "downloading")) return
@@ -70,7 +78,7 @@ internal class AppUpdates(private val activity: Activity) {
                 val releases =
                     JSONArray(
                         RemoteFiles.json(
-                            "https://api.github.com/repos/azksama/ComfyPocket/releases?per_page=30"
+                            "https://api.github.com/repos/$REPO/releases?per_page=20"
                         )
                     )
                 var best: JSONObject? = null
@@ -87,14 +95,14 @@ internal class AppUpdates(private val activity: Activity) {
                     val assets = r.getJSONArray("assets")
                     for (j in 0 until assets.length()) {
                         val a = assets.getJSONObject(j)
-                        val expected = "Mochi-${tag.drop(1)}-Android-arm64.apk"
+                        val expected = "huihua-${tag.drop(1)}-arm64.apk"
                         val url = a.optString("browser_download_url")
                         val sha = a.optString("digest").removePrefix("sha256:")
                         val size = a.optLong("size")
                         if (
                             a.optString("name") == expected &&
                                 url ==
-                                    "https://github.com/azksama/ComfyPocket/releases/download/$tag/$expected" &&
+                                    "https://github.com/$REPO/releases/download/$tag/$expected" &&
                                 sha.matches(Regex("[0-9a-f]{64}")) &&
                                 size in 1..250_000_000
                         ) {
@@ -104,7 +112,11 @@ internal class AppUpdates(private val activity: Activity) {
                                     .put("url", url)
                                     .put("sha256", sha)
                                     .put("size", size)
-                            if (best == null || compare(tag, best!!.getString("version")) > 0)
+                                    .put("notes", r.optString("body").take(20_000))
+                                    .put("title", r.optString("name"))
+                                    .put("published", r.optString("published_at"))
+                                    .put("page", r.optString("html_url"))
+                            if (best == null || compare("v" + best!!.getString("version"), tag) < 0)
                                 best = candidate
                         }
                     }
@@ -236,5 +248,9 @@ internal class AppUpdates(private val activity: Activity) {
     fun close() {
         cancel()
         worker.shutdown()
+    }
+
+    private companion object {
+        const val REPO = "xxwzh66-byte/huihua"
     }
 }

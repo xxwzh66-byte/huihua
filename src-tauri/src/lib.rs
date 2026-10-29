@@ -1,5 +1,6 @@
 mod mobile_services;
 mod biometrics;
+mod llm;
 mod translation;
 mod transport;
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -180,7 +181,14 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_pocket::init())
-        .invoke_handler(tauri::generate_handler![mobile_services::update_action,mobile_services::voice_action,translation::translate_text, translation::set_app_language,
+        .invoke_handler(tauri::generate_handler![
+            mobile_services::update_action,
+            mobile_services::voice_action,
+            llm::llm_get,
+            llm::llm_save,
+            llm::llm_models,
+            llm::llm_chat,
+            translation::translate_text, translation::set_app_language,
             lock_status,
             unlock,
             lock_session,

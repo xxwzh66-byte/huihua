@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, LoaderCircle, Sparkles, Square } from "lucide-react";
 import { Modal } from "./Modal";
 import { t, locale } from "./i18n";
@@ -9,6 +9,13 @@ import {
   type PromptOptimizer,
   type PromptProposal,
 } from "./promptOptimizer";
+import { createAdapter } from "./llmAdapter";
+import { llmGet, llmReady, type LlmView } from "./llm";
+import {
+  readTemplates,
+  renderTemplate,
+  type PromptTemplate,
+} from "./promptTemplates";
 import mochi from "../assets/brand/expressions/open.webp";
 const DRAFT = "mochi-voice-draft-v1";
 function readDraft() {
@@ -55,8 +62,31 @@ export default function PromptAssistant({
   const [proposals, setProposals] = useState<
     (PromptProposal & { selected: boolean })[]
   >([]);
+  const [config, setConfig] = useState<LlmView | null>(null);
+  const [templates] = useState<PromptTemplate[]>(() => readTemplates());
+  const [templateId, setTemplateId] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
   const request = useRef<AbortController | null>(null);
   const busy = phase === "optimizing";
+  const template = templates.find((item) => item.id === templateId) ?? null;
+  const engine = useMemo(
+    () => adapter ?? createAdapter({ templateId, modelName: config?.model || "API" }),
+    [adapter, templateId, config?.model],
+  );
+  const ready = Boolean(adapter) || llmReady(config);
+  useEffect(() => {
+    let live = true;
+    llmGet()
+      .then((view) => {
+        if (live) setConfig(view);
+      })
+      .catch(() => {
+        if (live) setConfig(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
   useEffect(() => () => request.current?.abort(), []);
   function save(next: typeof draft) {
     setDraft(next);
@@ -73,14 +103,22 @@ export default function PromptAssistant({
     setPhase("idle");
   }
   async function run() {
-    if (request.current || busy || !adapter) return;
+    if (request.current || busy || !ready) return;
     const controller = new AbortController();
     request.current = controller;
     setError("");
     setPhase("optimizing");
     try {
+      const composed = template
+        ? [renderTemplate(template, fields), draft.description]
+            .filter((part) => part.trim())
+            .join(". ")
+        : draft.description;
       const result = validateProposals(
-        await adapter.optimize({ ...draft, side }, controller.signal),
+        await engine.optimize(
+          { ...draft, description: composed, side },
+          controller.signal,
+        ),
       );
       if (controller.signal.aborted) return;
       setProposals(result.map((p) => ({ ...p, selected: true })));
@@ -100,7 +138,7 @@ export default function PromptAssistant({
   }
   return (
     <Modal
-      title={t("Assistant vocal")}
+      title={t("Assistant de prompt")}
       className="prompt-assistant"
       onClose={() => {
         cancel();
@@ -110,7 +148,7 @@ export default function PromptAssistant({
       <div className="assistant-intro">
         <img src={mochi} alt="" />
         <div>
-          <h3>{adapter ? adapter.name : t("De votre idée aux tags")}</h3>
+          <h3>{ready ? engine.name : t("De votre idée aux tags")}</h3>
           <p>
             {t(
               "Décrivez votre scène, puis choisissez les blocs à ajouter au prompt.",
@@ -118,6 +156,60 @@ export default function PromptAssistant({
           </p>
         </div>
       </div>
+      {templates.length > 0 && (
+        <label>
+          {t("Modèle de prompt")}
+          <select
+            disabled={busy}
+            value={templateId}
+            onChange={(e) => {
+              setTemplateId(e.target.value);
+              setFields({});
+            }}
+          >
+            <option value="">{t("Aucun modèle")}</option>
+            {templates.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {template && template.params.length > 0 && (
+        <div className="assistant-params">
+          {template.params.map((param) => (
+            <label key={param.key}>
+              {param.label}
+              {param.kind === "select" ? (
+                <select
+                  disabled={busy}
+                  value={fields[param.key] ?? ""}
+                  onChange={(e) =>
+                    setFields({ ...fields, [param.key]: e.target.value })
+                  }
+                >
+                  <option value="">—</option>
+                  {(param.options ?? []).map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  disabled={busy}
+                  maxLength={200}
+                  value={fields[param.key] ?? ""}
+                  onChange={(e) =>
+                    setFields({ ...fields, [param.key]: e.target.value })
+                  }
+                />
+              )}
+            </label>
+          ))}
+        </div>
+      )}
       <label>
         {t("Langue de la description")}
         <select
@@ -151,10 +243,17 @@ export default function PromptAssistant({
         </span>
         <span>{draft.description.length}/5 000</span>
       </div>
+      {!ready && (
+        <p className="assistant-hint" role="status">
+          {t(
+            "Configurez une API de génération dans les paramètres pour activer cet assistant.",
+          )}
+        </p>
+      )}
       <div className="assistant-actions">
         <button
           className="primary"
-          disabled={!adapter || busy || !draft.description.trim()}
+          disabled={!ready || busy || !draft.description.trim()}
           onClick={() => void run()}
         >
           <Sparkles size={18} />

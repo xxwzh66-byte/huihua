@@ -783,6 +783,20 @@ label select {
   gap: 8px;
   align-items: center;
 }
+.workflow-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.workflow-toolbar .segmented {
+  margin: 0;
+}
+.workflow-toolbar .file-picker {
+  margin: 0;
+}
 .studio-imports > .file-picker,
 .studio-imports > button {
   min-height: 34px;

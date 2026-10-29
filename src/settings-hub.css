@@ -137,6 +137,51 @@
   margin-top: 24px;
   padding-top: 16px;
 }
+.release-title {
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.release-meta {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.release-notes-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfbfb;
+}
+.release-notes-box h4 {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.release-notes {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 5px;
+  max-height: 34vh;
+  overflow: auto;
+}
+.release-notes li {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #3f3f3f;
+}
+.release-link {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+}
+.release-link a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .update-settings > button {
   width: 100%;
   margin-block: 16px;

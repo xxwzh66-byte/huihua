@@ -1,0 +1,1 @@
+import { chromium } from "playwright"; const b = await chromium.launch(); const p = await b.newPage(); await p.goto("data:text/html,<h1>hi</h1>"); console.log(await p.title(), "ok"); await b.close();
