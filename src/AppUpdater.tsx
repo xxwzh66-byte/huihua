@@ -55,20 +55,54 @@ function when(published?: string) {
   });
 }
 
+type ReleaseLine = { kind: "title" | "heading" | "item"; text: string };
+
+/** Turns a Markdown release body into headings and bullet items. */
+export function releaseLines(notes: string): ReleaseLine[] {
+  const out: ReleaseLine[] = [];
+  for (const raw of notes.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line === "---" || line.startsWith("<!--")) continue;
+    const heading = /^#{2,}\s+(.*)$/.exec(line);
+    if (heading) {
+      out.push({ kind: "heading", text: heading[1].trim() });
+      continue;
+    }
+    const title = /^#\s+(.*)$/.exec(line);
+    if (title) {
+      out.push({ kind: "title", text: title[1].trim() });
+      continue;
+    }
+    if (/^[-*]\s+/.test(line)) {
+      out.push({ kind: "item", text: line.replace(/^[-*]\s+/, "").trim() });
+      continue;
+    }
+    out.push({ kind: "item", text: line });
+  }
+  return out.slice(0, 160);
+}
+
 /** Renders the release body as lightweight structured text. */
 export function ReleaseBody({ notes }: { notes: string }) {
-  const lines = notes
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && line !== "---")
-    .map((line) => line.replace(/^#+\s*/, "").replace(/^[-*]\s+/, ""));
+  const lines = releaseLines(notes);
   if (!lines.length) return null;
   return (
-    <ul className="release-notes">
-      {lines.slice(0, 120).map((line, index) => (
-        <li key={`${index}-${line.slice(0, 12)}`}>{line}</li>
-      ))}
-    </ul>
+    <div className="release-notes">
+      {lines.map((line, index) =>
+        line.kind === "item" ? (
+          <p key={`${index}-${line.text.slice(0, 12)}`} className="release-line">
+            {line.text}
+          </p>
+        ) : (
+          <p
+            key={`${index}-${line.text.slice(0, 12)}`}
+            className={`release-heading ${line.kind === "title" ? "release-title" : ""}`}
+          >
+            {line.text}
+          </p>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -199,9 +233,11 @@ export default function AppUpdater() {
       ) : state.available && release ? (
         <>
           <h3>绘画 {release.version}</h3>
-          {release.title && <p className="release-title">{release.title}</p>}
+          {release.title && !release.title.includes(release.version) && (
+            <p className="release-title">{release.title}</p>
+          )}
           <p className="release-meta">
-            {(release.size / 1_000_000).toFixed(1)} Mo
+            {t("{0} Mo", [(release.size / 1_000_000).toFixed(1)])}
             {published ? ` · ${published}` : ""}
           </p>
           {release.notes && (

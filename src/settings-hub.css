@@ -162,16 +162,37 @@
 }
 .release-notes {
   margin: 0;
-  padding-left: 16px;
   display: grid;
   gap: 5px;
   max-height: 34vh;
   overflow: auto;
 }
-.release-notes li {
+.release-line {
+  margin: 0;
+  padding-left: 14px;
+  position: relative;
   font-size: 0.8rem;
   line-height: 1.55;
   color: #3f3f3f;
+}
+.release-line::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #b9b9b9;
+}
+.release-heading {
+  margin: 8px 0 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.release-heading:first-child {
+  margin-top: 0;
 }
 .release-link {
   margin: 10px 0 0;
