@@ -96,15 +96,13 @@ npm install
 npm run build      # tsc -b && vite build
 ```
 
-Android（Tauri 2）：
+Android（Tauri 2）：本机工具链不在系统 PATH，走 `_build/` 下四个脚本（cargo → copy_so → gradle → apksigner），完整步骤见 [HANDOFF.md](HANDOFF.md) 第 5 节。
 
-```bash
-npm run tauri android build
-```
+Rust 侧需要 `aarch64-linux-android` 目标与 Android NDK，且 **Cargo 的 `custom-protocol` feature 必须开启**（否则前端资源不嵌进 `.so`，装上去是白屏）。Android SDK 通过 `src-tauri/gen/android/local.properties` 的 `sdk.dir` 指定。
 
-Rust 侧需要 `aarch64-linux-android` 目标与 Android NDK；Android SDK 通过 `src-tauri/gen/android/local.properties` 的 `sdk.dir` 指定。仓库的 `scripts/build-android.ps1` 是 Windows 下的构建脚本示例。
+发布新版本时，把 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 与 `src-tauri/gen/android/app/tauri.properties`（`versionName` / `versionCode`）一起改版本号，打 `vX.Y.Z` tag，Release 附件必须命名为 `huihua-X.Y.Z-arm64.apk`，附带说明会显示在应用的更新弹窗里。发版脚本与校验方式见 [HANDOFF.md](HANDOFF.md) 第 6 节。
 
-发布新版本时，把 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 与 `src-tauri/gen/android/app/tauri.properties`（`versionName` / `versionCode`）一起改版本号，打 `vX.Y.Z` tag，Release 附件必须命名为 `huihua-X.Y.Z-arm64.apk`，附带说明会显示在应用的更新弹窗里。
+> 接手开发请看 **[HANDOFF.md](HANDOFF.md)**：架构、文件地图、数据契约、构建发版链路、已知坑与待办优先级都在里面。
 
 ## 目录
 
