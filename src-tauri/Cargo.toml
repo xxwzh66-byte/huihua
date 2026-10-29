@@ -24,3 +24,6 @@ tauri-plugin-pocket = { path = "pocket-plugin" }
 lto = true
 codegen-units = 1
 strip = true
+[features]
+# 生产构建必须开启：关闭后 tauri 走 devUrl（http://localhost:1420），前端资源不会被嵌入 .so
+custom-protocol = ["tauri/custom-protocol"]
