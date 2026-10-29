@@ -14,6 +14,20 @@
 - **三种语言**：简体中文（默认）、English、Français。
 - **纯白外观**：默认浅色纯白主题，圆角与留白，移动端优先。
 
+## 下载
+
+已编译的安装包在 Releases 页：
+
+| 版本 | 架构 | 大小 | 链接 |
+| --- | --- | --- | --- |
+| 1.0.0 | arm64-v8a | 71.0 MB | [huihua-1.0.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.0.0/huihua-1.0.0-arm64.apk) |
+
+```bash
+adb install huihua-1.0.0-arm64.apk
+```
+
+安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。
+
 ## 运行环境
 
 - ComfyUI 服务器地址（本机或局域网、也可公网），例如 `http://192.168.1.10:8188`
