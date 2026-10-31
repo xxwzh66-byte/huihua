@@ -17,3 +17,5 @@
 ## 安装
 
 `huihua-1.17.0-arm64.apk`（arm64-v8a，Android 10+，versionCode 11700）。签名与前几个版本一致（`CN=HuiHua Local Build`），可直接覆盖升级。
+
+> **1.17.0 目前是源码版**：这一轮在没装 Android 工具链的机器上迭代，APK 还没出。所以本 Release 标成 `pre-release`——Releases 页看得见，应用内更新不会把用户引向一个还不存在的下载。等 `huihua-1.17.0-arm64.apk` 出包上传后，这个标记会被去掉。

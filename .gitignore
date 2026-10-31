@@ -28,3 +28,6 @@ _build/cssbak/
 *.jks
 *.keystore
 
+
+# 本地登录 token
+_build/.ghtoken
