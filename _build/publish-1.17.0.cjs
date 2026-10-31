@@ -130,47 +130,62 @@ function changes() {
   });
   console.log(`tree   ${tree.body.sha.slice(0, 7)}`);
 
-  // 4) 建提交
-  const commit = await gh(`/repos/${REPO}/git/commits`, {
-    method: "POST",
-    body: JSON.stringify({ message: msg, tree: tree.body.sha, parents: [baseSha] }),
-  });
-  console.log(`commit ${commit.body.sha.slice(0, 7)}`);
+  // 幂等：树和上游一模一样说明这批改动早就推上去了，别再叠一个空提交。
+  let headSha = baseSha;
+  if (tree.body.sha === baseCommit.body.tree.sha) {
+    console.log(`tree   与上游一致 → 跳过提交，直接复用 ${baseSha.slice(0, 7)}`);
+  } else {
+    // 4) 建提交
+    const commit = await gh(`/repos/${REPO}/git/commits`, {
+      method: "POST",
+      body: JSON.stringify({ message: msg, tree: tree.body.sha, parents: [baseSha] }),
+    });
+    console.log(`commit ${commit.body.sha.slice(0, 7)}`);
 
-  // 5) fast-forward main（不 force）
-  const upd = await gh(`/repos/${REPO}/git/refs/heads/main`, {
-    method: "PATCH",
-    body: JSON.stringify({ sha: commit.body.sha, force: false }),
-  });
-  console.log(`main   ${upd.status} → ${commit.body.sha.slice(0, 7)}`);
+    // 5) fast-forward main（不 force）
+    const upd = await gh(`/repos/${REPO}/git/refs/heads/main`, {
+      method: "PATCH",
+      body: JSON.stringify({ sha: commit.body.sha, force: false }),
+    });
+    console.log(`main   ${upd.status} → ${commit.body.sha.slice(0, 7)}`);
+    headSha = commit.body.sha;
+  }
 
   // 6) Release（tag 由 target_commitish 自动创建）
   const body = fs.readFileSync(NOTES, "utf8").trim();
   const asset = `huihua-${VERSION}-arm64.apk`;
   const hasApk = fs.existsSync(APK);
+  // 没有 APK 时发成 prerelease 而不是 draft：
+  // 应用内更新（AppUpdates.kt:89）会同时跳过 draft 和 prerelease，用户不会拿到 404 的下载；
+  // 但 prerelease 在 Releases 页是**公开可见**的，源码版至少能被看到。
   const payload = {
     tag_name: TAG,
-    target_commitish: commit.body.sha,
+    target_commitish: headSha,
     name: `绘画 ${TAG}`,
     body,
-    draft: !hasApk,
-    prerelease: false,
+    draft: false,
+    prerelease: !hasApk,
   };
 
   let rel = await gh(`/repos/${REPO}/releases/tags/${TAG}`, {}, { allow: [404] });
   if (rel.status === 404) {
     rel = await gh(`/repos/${REPO}/releases`, { method: "POST", body: JSON.stringify(payload) });
-    console.log(`release create ${rel.status} id=${rel.body.id} draft=${rel.body.draft}`);
+    console.log(`release create ${rel.status} id=${rel.body.id} draft=${rel.body.draft} prerelease=${rel.body.prerelease}`);
   } else {
     rel = await gh(`/repos/${REPO}/releases/${rel.body.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ name: payload.name, body, draft: payload.draft, prerelease: false }),
+      body: JSON.stringify({
+        name: payload.name,
+        body,
+        draft: payload.draft,
+        prerelease: payload.prerelease,
+      }),
     });
-    console.log(`release update ${rel.status} id=${rel.body.id} draft=${rel.body.draft}`);
+    console.log(`release update ${rel.status} id=${rel.body.id} draft=${rel.body.draft} prerelease=${rel.body.prerelease}`);
   }
 
   if (!hasApk) {
-    console.log(`\n没有 APK：Release 以 draft 保留。出包后放回 ${APK} 再跑一次本脚本即自动上传并转正。`);
+    console.log(`\n没有 APK：Release 发成 prerelease（页面上可见，应用内更新不会推它）。出包后放回 ${APK} 再跑一次本脚本即自动上传并转正。`);
     return;
   }
 
