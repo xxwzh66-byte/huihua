@@ -68,7 +68,7 @@ export default function PromptStudio({
 }: {
   onInsert: (text: string, side: "positive" | "negative") => void;
   onOpenSettings: () => void;
-  draft?: { text: string; id: number } | null;
+  draft?: { text: string; prompt: string; id: number } | null;
 }) {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
@@ -114,12 +114,26 @@ export default function PromptStudio({
   }, []);
 
   // v1.16: the wardrobe can hand its selection to this box as a scene draft.
+  // The box keeps showing the Chinese line; `draft.prompt` is the English set
+  // names underneath it, so pressing "insert" writes something ComfyUI reads
+  // instead of Chinese prose. The English form is only offered while the box
+  // still holds the drafted line — once the text is edited it would be stale.
+  const [draftSource, setDraftSource] = useState("");
+  const [draftText, setDraftText] = useState("");
   useEffect(() => {
     if (!draft || !draft.text) return;
     setInput(draft.text);
     setOutput("");
+    setDraftSource(draft.prompt.trim());
+    setDraftText(draft.text.trim());
     setNotice(t("素材已作为画面描述填入。"));
   }, [draft]);
+
+  const insertDraft = (side: "positive" | "negative") => {
+    onInsert(draftSource, side);
+    setDraftSource("");
+    setDraftText("");
+  };
 
   const template = templates.find((item) => item.id === templateId) ?? null;
   const ready = llmReady(config);
@@ -360,6 +374,13 @@ export default function PromptStudio({
               onClick={() => void generate()}
             >
               <Sparkles size={17} /> {t("生成提示词")}
+            </button>
+          )}
+          {/* The wardrobe draft shows Chinese but only the English set names
+              are a usable prompt — this writes those, not the reading. */}
+          {draftSource && input.trim() === draftText && (
+            <button onClick={() => insertDraft("positive")}>
+              {t("按英文标签填入正向提示词")}
             </button>
           )}
           {config?.model && <small className="studio-model">{config.model}</small>}

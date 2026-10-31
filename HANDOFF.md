@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.16.0**（versionCode `11600`），HEAD `d84ca2c`，分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.17.0**（versionCode `11700`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -346,6 +346,16 @@ git commit -m "feat(vX.Y.Z): ..."
 node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 常被阻断）
 ```
 
+**github.com:443 打不通时**（2026-10-31 实测就是这种环境，只有 api.github.com 通）：放弃 `git push`，改用 Git Data API 发版——脚本已经把「本地改动 → blob → tree → commit → fast-forward main → tag + Release」全做完：
+
+```powershell
+$env:GITHUB_TOKEN = "ghp_xxx"     # repo scope 的 PAT，本机没存过
+node _build\probe-upstream.cjs    # 只读：看上游 main 在哪、tag 是否已存在
+node _build\diff-vs-upstream.cjs  # 只读：确认没有会覆盖上游改动的冲突项
+node _build\publish-1.17.0.cjs --dry-run   # 打印将要提交的 23 个文件
+node _build\publish-1.17.0.cjs             # 真发
+```
+
 顺带把 `README.md` 的标题、下载表、`adb install` 行、`### X.Y.Z` 更新内容节一起更新。
 
 ---
@@ -528,7 +538,31 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 ---
 
+## 9.8 v1.17 变更清单（本轮迭代）
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 素材库全中文 | 新增 `src/wardrobeNames.ts`、`src/data/wardrobe.{a,b,c,d}.*.json`（7 个中文名分片）、`src/wardrobeNames.test.ts`；`Glossary.tsx` 全部渲染点走 `display()` | 8048 条标签全部有中文名，**英文原值保持不动**：生成提示词仍然发英文 label。`display()` 只影响渲染层，`hitFor()`/`describe()` 里的 `prompt` 始终是英文 |
+| 2 | 中英日三路搜索 | `src/wardrobeNames.ts` 的 `searchText()`；`Glossary.tsx` 的 `matches()` | 同时匹配中文名、英文原名、罗马音别名（`sailor dress` / `sailor` / `seifuku` 都能命中） |
+| 3 | 整套双路发送 | `Glossary.tsx` 的 `describe()`；`PromptStudio.tsx` 的 `insertDraft()` + 新按钮；`App.tsx` `describeDraft` 类型改成 `{ text, prompt }` | 「发送到画面描述」给中文句子（`text`）+ 英文标签草稿（`prompt`）；「按英文标签填入正向提示词」直接把英文标签写进正向提示词。两条路互不覆盖 |
+| 4 | 分类/分组中文化 | `Glossary.tsx` 面包屑与 `.theme-choices` 分组条 | 都走 `groupLabel()`/中文映射，缺中文名回退英文原名 |
+| 5 | 版本 + i18n | `_build/bump-1.17.0.mjs`、`_build/check-i18n-1.17.0.cjs` | 1.17.0 / versionCode `11700`；locale 983 → **986** 键（中英法三语对齐，`t()` 引用 0 缺失） |
+
+**校验**：`node node_modules/typescript/bin/tsc -b` 无输出；`vitest run` 15 文件 / **75 测试**全绿（新增 `src/wardrobeNames.test.ts` 20 条）；`vite build` 通过；`_build/check-i18n-1.17.0.cjs` 输出 en 986 / zh 986 / 缺失 0。
+
+**网络环境实测（2026-10-31，这台机器）**：
+- `github.com:443` **连不上**（`curl` 21s 超时，`git push` 走不通），`git` 还会先报 `schannel: CRYPT_E_REVOCATION_OFFLINE (0x80092013)`——想绕过就用 `git config --global http.schannelCheckRevoke false` 或 `curl --ssl-no-revoke`。
+- `api.github.com`、`codeload.github.com`、`objects.githubusercontent.com`、`ssh.github.com:443` **都通**。
+- 所以发版**不要走 `git push`**，走 `_build/publish-1.17.0.cjs`：它用 Git Data API 直接建 blob → tree → commit → fast-forward `main` → 建 tag + Release。这条路只需要 api.github.com。
+- 只缺一个东西：**写权限 token**。本机 `git credential fill` 没有存 PAT、`cmdkey /list` 也没有 github 条目，所以脚本要 `GITHUB_TOKEN=ghp_xxx node _build/publish-1.17.0.cjs`（或先把 PAT 存进 git credential）才能真发。
+- `_build/probe-upstream.cjs` 只读探测上游状态；`_build/diff-vs-upstream.cjs` 对比本地 HEAD 与上游 main 的 blob sha，确认没有「上游已改过、本地要覆盖」的冲突（1.17.0 结果：`changed=23 identical-to-upstream=0 upstream-moved=0`）。
+
+**没做成的**：本机没有 Android 工具链（`D:\demo\toolchain`、`D:\demo\android-sdk` 均不存在）、没有 `_build/huihua-release.jks` 签名，因此 1.17.0 **只到源码 + 前端产物**，没有 APK 资产，Release 会发成 draft。出包要在原开发机（`D:\demo\Paint-v1`）按第 5 节四步跑完，再把 `huihua-1.17.0-arm64.apk` 放到 `dist-apk/` 重跑发布脚本，脚本会自动上传并把 Release 转正。
+
+---
+
 ## 10. 已知的坑（都踩过）
+
 
 ### 10.1 控制台编码
 

@@ -15,6 +15,12 @@ import {
 } from "lucide-react";
 import { normalizeSearch } from "./taxonomy";
 import wardrobe from "./data/wardrobe.json";
+import {
+  describeSet,
+  describeTag,
+  groupLabel,
+  sceneDraft,
+} from "./wardrobeNames";
 
 type Item = { label: string; tags: string[] };
 type Group = { name: string; items: Item[] };
@@ -22,7 +28,22 @@ type Section = { id: string; name: string; groups: Group[]; tags: number };
 
 const sections = wardrobe.sections as Section[];
 
-const display = (s: string) => s.replace(/_/g, " ");
+/**
+ * The chosen sets carry both readings: `zh` is what the panel prints, `label`
+ * is the English set name the prompt page needs. Nothing user-facing renders
+ * a raw underscore tag any more — every chip goes through `describeTag`.
+ */
+type Hit = {
+  label: string;
+  zh: string;
+  tags: string[];
+  zhTags: string[];
+  context: string;
+};
+
+/** Group names keep their Chinese head; the Latin gloss stays for orientation. */
+const breadcrumbGroup = (name: string) =>
+  /（[A-Za-z]/.test(name) && /[\u4e00-\u9fa5]/.test(name) ? name : groupLabel(name);
 
 const ICONS: Record<string, typeof Shirt> = {
   clothing: Shirt,
@@ -38,8 +59,6 @@ const DETAILS: Record<string, string> = {
   expression: "Visages, intensités et réactions",
 };
 
-type Hit = { label: string; tags: string[]; context: string };
-
 function Wardrobe({
   onAdd,
   onNotice,
@@ -47,7 +66,7 @@ function Wardrobe({
 }: {
   onAdd: (tags: string[], side: "positive" | "negative") => void;
   onNotice: (message: string) => void;
-  onDescribe?: (text: string) => void;
+  onDescribe?: (text: string, prompt: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [section, setSection] = useState("clothing");
@@ -78,22 +97,35 @@ function Wardrobe({
         (list.clientWidth - choice.clientWidth) / 2;
   }, [section, group, query]);
 
+  const hitFor = (item: Item, context: string): Hit => {
+    const zhTags = item.tags.map(describeTag);
+    return {
+      label: item.label,
+      zh: describeSet(item.label),
+      tags: item.tags,
+      zhTags,
+      context,
+    };
+  };
+
   const hits = useMemo<Hit[]>(() => {
     const q = normalizeSearch(query);
     if (q) {
+      // A search box that only knows English would make the Chinese reading
+      // pointless: match the shelf, group, set, English tag and Chinese reading
+      // in one pass, then deduplicate by the tag set that actually gets sent.
       const seen = new Set<string>();
       return sections
         .flatMap((s) =>
           s.groups.flatMap((g) =>
             g.items
-              .filter((item) =>
-                normalizeSearch(`${s.name} ${g.name} ${item.label} ${item.tags.join(" ")}`).includes(q),
-              )
-              .map((item) => ({
-                label: item.label,
-                tags: item.tags,
-                context: `${s.name} · ${g.name}`,
-              })),
+              .filter((item) => {
+                const haystack = normalizeSearch(
+                  `${s.name} ${g.name} ${item.label} ${describeSet(item.label)} ${item.tags.join(" ")} ${item.tags.map(describeTag).join(" ")}`,
+                );
+                return haystack.includes(q);
+              })
+              .map((item) => hitFor(item, `${s.name} · ${breadcrumbGroup(g.name)}`)),
           ),
         )
         .filter((hit) => {
@@ -103,11 +135,7 @@ function Wardrobe({
           return true;
         });
     }
-    return (current?.items ?? []).map((item) => ({
-      label: item.label,
-      tags: item.tags,
-      context: "",
-    }));
+    return (current?.items ?? []).map((item) => hitFor(item, ""));
   }, [query, current]);
 
   const total = useMemo(
@@ -143,18 +171,17 @@ function Wardrobe({
   };
 
   /**
-   * Turns the picked sets into one readable scene line: "卧室, 晚礼服, 诱惑姿态…"
-   * so the prompt page has something to expand instead of a bare tag list.
+   * Turns the picked sets into one readable scene line: "卧室，晚礼服，诱惑姿态…"
+   * The panel and the prompt box show `zh`; the English set names travel
+   * alongside as `prompt` because that is the only usable form downstream.
    */
   const describe = () => {
-    const labels = chosen
-      .map((hit) => display(hit.label).trim())
-      .filter(Boolean);
-    const text = [...new Set(labels)].join("，");
+    const labels = chosen.map((hit) => hit.label).filter(Boolean);
+    const draft = sceneDraft(labels);
     setSelected([]);
     setChosen([]);
-    if (!text) return;
-    onDescribe?.(text);
+    if (!draft.text) return;
+    onDescribe?.(draft.text, draft.prompt);
   };
 
   return (
@@ -214,7 +241,7 @@ function Wardrobe({
               ])}
             </span>
             <ChevronRight size={13} />
-            <span>{current?.name ?? ""}</span>
+            <span>{breadcrumbGroup(current?.name ?? "")}</span>
           </div>
           <div
             ref={groupRef}
@@ -230,7 +257,7 @@ function Wardrobe({
                   setLimit(40);
                 }}
               >
-                {g.name}
+                {breadcrumbGroup(g.name)}
               </button>
             ))}
           </div>
@@ -255,8 +282,8 @@ function Wardrobe({
               onClick={() => toggle(hit)}
             >
               <span>
-                <strong>{display(hit.label)}</strong>
-                <small>{hit.tags.slice(0, 4).map(display).join(" · ")}</small>
+                <strong>{hit.zh}</strong>
+                <small>{hit.zhTags.slice(0, 4).join(" · ")}</small>
                 {hit.context && <small>{hit.context}</small>}
                 {hit.tags.length > 4 && (
                   <small>
@@ -280,12 +307,13 @@ function Wardrobe({
         <div className="empty-state">
           <Search size={30} />
           <h3>{tr("Aucun ensemble trouvé")}</h3>
-          <p>{tr("Essayez un mot plus court ou une autre catégorie.")}</p>
+          <p>{tr("换个更短的中文词，或直接输入英文标签名试试。")}</p>
         </div>
       )}
 
       {!query && (
         <p className="hint">
+          {tr("按中文搜套装名或标签，输入英文标签也认")} ·{" "}
           {tr("{0} tags · hors ligne · source Comfyui-Anima-Wardrobe", [total])}
         </p>
       )}
@@ -305,9 +333,9 @@ function Wardrobe({
                     picked.filter((item) => !item.tags.includes(tag)),
                   );
                 }}
-                aria-label={tr("Retirer {0} de la sélection", [tag])}
+                aria-label={tr("Retirer {0} de la sélection", [describeTag(tag)])}
               >
-                {display(tag)} <X size={13} />
+                {describeTag(tag)} <X size={13} />
               </button>
             ))}
           </div>

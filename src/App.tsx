@@ -202,8 +202,12 @@ export default function App() {
   const [glossaryVisited, setGlossaryVisited] = useState(false);
   // v1.16: wardrobe → prompt page handoff. Bumping the id re-fires the effect
   // even when the same sets are sent twice.
+  // `text` is the Chinese line the panel shows; `prompt` is the English set
+  // names the same line was built from, so the prompt page can hand ComfyUI
+  // something it actually understands.
   const [describeDraft, setDescribeDraft] = useState<{
     text: string;
+    prompt: string;
     id: number;
   } | null>(null);
   useEffect(() => {
@@ -767,8 +771,8 @@ export default function App() {
           <Glossary
             onNotice={notify}
             onAdd={addTags}
-            onDescribe={(text) => {
-              setDescribeDraft({ text, id: Date.now() });
+            onDescribe={(text, prompt) => {
+              setDescribeDraft({ text, prompt, id: Date.now() });
               setTab("prompt");
               setNotice(tr("素材已发送到画面描述。"));
             }}
