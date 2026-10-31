@@ -16,6 +16,6 @@
 
 ## 安装
 
-`huihua-1.17.0-arm64.apk`（arm64-v8a，Android 10+，versionCode 11700）。签名与前几个版本一致（`CN=HuiHua Local Build`），可直接覆盖升级。
+`huihua-1.17.0-arm64.apk`（arm64-v8a，Android 10+，versionCode 1017000，约 72 MB，SHA256 `158413f8d1d32f407c160de139fc2f3363048dac7a934090c0c7c974dc8c3add`）。
 
-> **1.17.0 目前是源码版**：这一轮在没装 Android 工具链的机器上迭代，APK 还没出。所以本 Release 标成 `pre-release`——Releases 页看得见，应用内更新不会把用户引向一个还不存在的下载。等 `huihua-1.17.0-arm64.apk` 出包上传后，这个标记会被去掉。
+> **这一版的签名换了**：上一版的 keystore 不在仓库里、也没留备份，本次用新生成的本地密钥重新签名（`CN=huihua`）。覆盖安装会提示「应用未安装」或签名冲突，**请先卸载旧版再装**。界面偏好存在本地，画廊与工作流都在 ComfyUI 服务端，卸载不会丢图。
