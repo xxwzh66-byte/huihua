@@ -151,7 +151,16 @@ function changes() {
     headSha = commit.body.sha;
   }
 
-  // 6) Release（tag 由 target_commitish 自动创建）
+  // 6) tag 指到最新提交（Release PATCH 不会移动已存在的 tag，得手动 force 一下）
+  if (existing.status === 200 && existing.body.object.sha !== headSha) {
+    const move = await gh(`/repos/${REPO}/git/refs/tags/${TAG}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sha: headSha, force: true }),
+    });
+    console.log(`tag    move ${existing.body.object.sha.slice(0, 7)} → ${headSha.slice(0, 7)} (${move.status})`);
+  }
+
+  // 7) Release（首次创建时 tag 由 target_commitish 自动生成）
   const body = fs.readFileSync(NOTES, "utf8").trim();
   const asset = `huihua-${VERSION}-arm64.apk`;
   const hasApk = fs.existsSync(APK);
