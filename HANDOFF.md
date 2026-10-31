@@ -556,7 +556,8 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - 所以发版**不要走 `git push`**，走 `_build/publish-1.17.0.cjs`：它用 Git Data API 直接建 blob → tree → commit → fast-forward `main` → 建 tag + Release。这条路只需要 api.github.com。
 - 写权限 token 靠**设备码登录**拿（本机没有 `gh`，`github.com/login/device/code` 偶尔抖动，脚本里带 8 次重试）：`node _build/gh-login-and-publish.cjs` 打印 `user_code`，浏览器打开 <https://github.com/login/device> 输入授权 GitHub CLI，token 落到 `_build/.ghtoken`（已 gitignore，40 字符，`gho_` 前缀），随后自动发版。要换账号就删掉这个文件重跑。
 
-**1.17.0 发布结果**：上游 `main` 从 `a6dbaff` 前进到 **`50fac62`**（两个提交：`389144c` 首发 + `50fac62` 补 Release 正文），tag `v1.17.0` → `50fac62`，Release id **`429714462`**，`draft=false / prerelease=true`（原因见下），无 APK 资产。`_build/verify-release.cjs` 可复核：tag 上的 `package.json` 是 `1.17.0`、`src/wardrobeNames.ts` 4708 字节在位。
+**1.17.0 发布结果**：上游 `main` 从 `a6dbaff` 前进到 **`699fcb0`**（`389144c` 首发 → `50fac62` 补 Release 正文 → `c1bf164` / `699fcb0` 补发版脚本与 tag 平移），tag `v1.17.0` → `699fcb0`，Release id **`429714462`**，`draft=false / prerelease=true`（原因见下），无 APK 资产。页面：<https://github.com/xxwzh66-byte/huihua/releases/tag/v1.17.0>。`_build/verify-release.cjs` 可复核 tag 与 main 指向、`package.json` = `1.17.0`、`src/wardrobeNames.ts` 4708 字节在位；`_build/show-release-body.cjs` 抓回 Release 正文。
+- `publish-1.17.0.cjs` 已幂等：树和上游一致就跳过提交，且会把已存在的 tag `force` 平移到最新提交（Release PATCH 不会移动 tag）。连跑两次第二次只打印「跳过提交」。
 - 为什么是 `prerelease` 而不是 `draft`：`AppUpdates.kt:89` 同时跳过 `draft` 和 `prerelease`，两者都不会被应用内更新推给用户；但 `draft` 在 Releases 页不显示，`prerelease` 显示。第一次发成 `draft`（id `429713828`）已删除。
 - **本地 sha 与上游不同**：上游那两个提交是 Git Data API 直接造的，本地工作副本还是 `331516f` / `52ec453` / `f87f746`，树内容一致但 sha 不同。`github.com` 不通没法 `git fetch` 对齐，下一轮用 `_build/diff-vs-upstream.cjs` 按 blob sha 比对即可，不用担心「本地落后」。
 - `_build/probe-upstream.cjs` 只读探测上游状态；`_build/diff-vs-upstream.cjs` 对比本地 HEAD 与上游 main 的 blob sha，确认没有「上游已改过、本地要覆盖」的冲突（1.17.0 结果：`changed=23 identical-to-upstream=0 upstream-moved=0`）。
