@@ -676,6 +676,8 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 **校验（v1.19）**：`npx tsc -b` 无输出；`npx vitest run` **17 文件 / 97 测试**全绿；`npx vite build` 通过（`index-qEtYj87a.js` 473.75 kB，`Glossary-*.js` 582.94 kB 有 >500 kB 警告，非阻塞）；`npx playwright test tests/v114 tests/v115 tests/v116 tests/v118 tests/v119` → **17 passed（24.9s）**。
 - 版本：1.19.0 / versionCode **11900**（`_build/bump-1.19.0.mjs`）；locale 1033 → **1042** 键（`_build/add-v119-strings.mjs`，+9：`简体中文` / 五个主题名 / `Supprimer` / `Supprimer du résultat` / `Rafraîchissement automatique`）。
 
+**构建产物（v1.19.0）**：`dist-apk/huihua-1.19.0-arm64.apk`，**75 253 503 字节**，`versionCode='11900'` / `versionName='1.19.0'`，证书 `9fe3dac1…bf9f`，APK SHA-256 `44792687f76ab380164b3d323a6797b62a46cd67792cc99119d2681469498cdb`。构建链：`npx vite build` → `_build/build-apk.ps1 -Toolchain D:\demo\toolchain -Sdk D:\demo\android-sdk -Version 1.19.0`（cargo + gradle 一次跑完，2m42s，三道自检全过）。`_build/v119-verify-apk.mjs` 确认 `dist/assets` 下 14 个文件全部嵌进 `libhuihua_lib.so`。发布：`node _build/publish-1.19.0.cjs`（上传前本地复核 SHA-256 / 证书 / versionCode，任一不符不碰远端）。
+
 **已知取舍**：
 - 「删除」仍只是**本地隐藏**，服务器 output 目录不动（v1.14 起如此，没有 `/api/history` 的删除接口）。
 - 实时预览的修复**只在 release 构建层面**，尚未在真机上验证过一次完整的 socket 预览；另外 Rust 侧没有 WebSocket 实现（离线 cargo registry 里没有 `tokio-tungstenite`），所以仍然走 WebView 直连。
