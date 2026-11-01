@@ -261,3 +261,49 @@ test("the image viewer shows the detailed prompt behind a picture", async ({
     "detail_tweaker",
   );
 });
+
+test("the detailed prompt can be edited, copied and pushed to the studio", async ({
+  page,
+}) => {
+  await boot(page);
+  await page.locator("aside nav button").nth(2).click();
+  const shot = page.locator(".gallery-grid .image-button").first();
+  await expect(shot).toBeVisible({ timeout: 15000 });
+  await shot.scrollIntoViewIfNeeded();
+  await shot.click();
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: "查看详细提示词" }).click();
+  await expect(page.locator(".image-details")).toBeVisible();
+
+  const sheet = page.locator(".image-details");
+  // Read-only until you ask to edit.
+  await expect(sheet.locator(".detail-edit")).toHaveCount(0);
+  await expect(sheet.locator(".detail-text").first()).toContainText("silver hair");
+
+  await sheet.locator(".detail-actions button", { hasText: "编辑" }).click();
+  const editor = sheet.locator(".detail-edit").first();
+  await expect(editor).toHaveValue(/silver hair/);
+  await editor.fill("1girl, silver hair, neon city, midnight");
+
+  // "Copier tout" flattens both prompts plus the parameter rows.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await sheet.locator(".detail-actions button", { hasText: "复制全部" }).click();
+  await page.waitForTimeout(300);
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clip).toContain("1girl, silver hair, neon city, midnight");
+  expect(clip).toContain("blurry, low quality");
+  expect(clip).toContain("anima.safetensors");
+
+  // "Rétablir" restores the values that came out of the PNG.
+  await sheet.locator(".detail-actions button", { hasText: "还原" }).click();
+  await expect(editor).toHaveValue(/quiet library/);
+
+  await editor.fill("1girl, silver hair, neon city");
+  await sheet.locator(".detail-actions button", { hasText: "写回工坊" }).click();
+  await page.waitForTimeout(700);
+  // The sheet closes and the Atelier shows the edited prompt.
+  await expect(page.locator(".image-details")).toHaveCount(0);
+  await expect(page.locator(".prompt-entry.positive-entry")).toContainText(
+    "neon city",
+  );
+});

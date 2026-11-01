@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.17.0**（versionCode `11700`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.18.0**（versionCode `11800`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -19,7 +19,7 @@
 
 | 页 | 干什么 |
 | --- | --- |
-| 工坊 `create` | 导入 API 工作流 → 改参数 → 写提示词 → 实时预览 → 生成 |
+| 工坊 `create` | 导入 API 工作流 → 提示词装配（v1.18，固定块 / 质量标签 / 替换规则）→ 改参数 → 勾掉不要的节点 → 实时预览 → 生成 |
 | 提示词 `prompt` | 独立页，接任意 OpenAI 兼容 API，一句描述直接出 Danbooru 标签，可复制 / 填入工坊 |
 | 图库 `gallery` | 服务器输出图，收藏、删除（本地隐藏）、批量下载 |
 | 素材库 `glossary`（v1.15 改名，id 未变） | 服装 / 场景 / 姿势 / 表情四货架，标签来自 Comfyui-Anima-Wardrobe（8048 条，离线） |
@@ -104,7 +104,18 @@ results / preview → #studio-render
   - 语法 `{{key}}`，整值 `WHOLE = /^\s*\{\{\s*([a-z_]+)\s*\}\}\s*$/`，文本内 `ANY`（可混写）。
   - `BINDINGS` 13 项：`prompt / negative / model / vae / steps / cfg / width / height / seed / batch / clip_skip / sampler / scheduler`，每项有 `value(settings)` 和可选的 `apply(settings, raw)`（1.1.3 加的，让画布里的可编辑字段能反向写回设置）。
   - `resolveGraph(graph, settings)` — 发送前替换，整值占位符保留原始类型（number 仍是 number）。
-  - `autoBind(graph)` — 导入时把节点字段改写成占位符。**这是「正面提示词如何注入」的答案**：先从匹配 `/sampler/i` 的节点读 `positive`/`negative` 的 link 得到正负集合，再把第一个非负向的 encode 节点写成 `{{prompt}}`，其余写 `{{negative}}`，然后按 class_type 正则写死其余参数。
+  - `autoBind(graph)` — 导入时把节点字段改写成占位符。**这是「正面提示词如何注入」的答案**：先从匹配 `/sampler/i` 的节点读 `positive`/`negative` 的 link 得到正负集合，再把第一个非负向的 encode 节点写成 `{{prompt}}`，其余写 `{{negative}}`，然后按 class_type 正则写死其余参数。**v1.15 起导入不再自动调用它**，只有 JSON 视图里的「联动到自动设置」按钮会调。
+
+**提示词装配三件套（v1.18，移植自 st-chatu8 的 ComfyUI 面板）**
+
+- `src/promptRules.ts`（243 行）— 规则引擎。
+  - 规则行格式：`触发词 | 类型 | 内容`，**取最后一个 `|`** 分割；类型 ∈ `替换` / `前置前` / `前置后` / `后置前` / `后置后` / `最后置`。
+  - 触发词可用 `|` 并列，`/…/` 包裹按正则（`gi`），否则字面匹配；`#` 开头是注释。
+  - `applyRules(prompt, rulesText)` → `{modifiedPrompt, insertions, applied}`；`assemble(rules, assembly)` 按 `前置前 → before → 前置后 → modifiedPrompt → 后置前 → after → 后置后 → quality → 最后置` 拼接并 `dedupeTags`；`assembleNegative` 把 `qualityNegative` 提到最前。
+  - `finalPrompt` / `finalNegative` 是 `generate()` 唯一入口，返回 `{text, rules}`。
+  - **刻意没移植 `@if` 条件分支**（原版是 eval 级 `safeEvaluateIf`）。
+- `src/promptPresets.ts`（195 行）— 三套命名集合：`prompt-fix-presets-v1`（固定块）/ `prompt-rule-presets-v1`（规则表）/ `prompt-profiles-v1`（整套 config，含 settings + workflowName），各 LIMIT 80。
+- `src/PromptAssembly.tsx`（379 行）+ `src/prompt-assembly.css`（225 行）— 工坊里的「提示词装配」折叠卡，四栏文本框 + 规则表 + 三组 picker。挂在 `<PromptSection>` 之前。
 
 **其它核心模块**
 
@@ -119,6 +130,8 @@ results / preview → #studio-render
 | `workflowGraph.ts` | `nodeFields` / `setField` / `coerceField` / `nodeTitle` + `layoutGraph`（v1.14 重新被画布调用，按 depth 分列输出 `nodes`/`edges`） |
 | `workflowLibrary.ts`（97 行） | 库的存储层，key `workflow-library-v1`，上限 60 |
 | `PromptSection.tsx`（约 80 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor`；「打开素材库」按钮 |
+| `PromptAssembly.tsx`（379 行，v1.18） | 工坊的「提示词装配」卡：四栏固定块 / 质量标签 + 替换规则表 + 三组预设 picker |
+| `nodeSkip.ts`（157 行，v1.18） | 节点旁路：`applySkips` 剥 `_skip` 节点并重连下游、`skipStatus` 判可跳过、`graphStats` 数节点与连线 |
 | `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
 | `Glossary.tsx`（约 290 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json`。v1.16 加 `onDescribe`：选中整套后可「发送到画面描述」 |
 | `ImageDetails.tsx`（约 180 行） | **v1.16 新增**：读图片的 `comfy_pocket` 元数据，列出正/负提示词与全部参数，两段各带复制。由 `Viewer.tsx` 的第五个动作按钮打开 |
@@ -192,6 +205,8 @@ restore / disconnect / connect_server / api / image / save_image
 | `results:<server>` / `seed:<server>` / `tasks:<server>` | 上次结果 / 种子 / 队列 | `App.tsx` |
 | `active` | 上次连的服务器 | `App.tsx:241` |
 | `workflow-library-v1` | 工作流库（≤60） | `workflowLibrary.ts` |
+| `prompt-assembly` / `prompt-rules` | 提示词装配的四栏内容 / 规则表原文（v1.18） | `App.tsx` 两个 effect 直写 |
+| `prompt-fix-presets-v1` / `prompt-rule-presets-v1` / `prompt-profiles-v1` | 固定块预设 / 规则预设 / 整套配置（各 ≤80） | `promptPresets.ts` |
 | `prompt-templates-v1` | skill 模板（≤100） | `promptTemplates.ts` |
 | `prompt-default-system-v1` | 全局默认 system 指令 | `promptTemplates.ts` |
 | `prompt-studio-history-v1` | 提示词页历史（≤30） | `PromptStudio.tsx` |
@@ -367,9 +382,9 @@ node _build\publish-1.17.0.cjs             # 真发
 
 `vitest.config.ts`：`include: ["src/**/*.test.ts"]`，`setupFiles: ["src/testLocale.ts"]`（把 locale 钉在 `fr`，所以断言里是法语串）。
 
-现有 14 个测试文件 / **68 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）。
+现有 17 个测试文件 / **97 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）/ `wardrobeNames`（v1.17）/ `promptRules`（v1.18）/ `nodeSkip`（v1.18）。
 
-**没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptTemplates`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
+**没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptTemplates`、`promptPresets`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
 
 ### 7.2 E2E（Playwright）——部分过期
 
@@ -380,6 +395,9 @@ node _build\publish-1.17.0.cjs             # 真发
 **v1.15 新增并通过的**：`tests/v115.spec.ts`（4 用例）。覆盖：新装直落工坊且无引导步骤、导航第五项文案、素材库四货架 + 搜索 + 选中写进提示词、编辑器只剩文本/区块/翻译/权重（无语音入口、无补全开关、无联想气泡）、导入工作流不改原字段。
 
 **v1.16 新增并通过的**：`tests/v116.spec.ts`（2 用例）。覆盖：素材库选中整套 → 点「发送到画面描述」→ 落到提示词页的画面描述框；图库打开看图 → 「查看详细提示词」→ 弹层列出正/负提示词、模型、LoRA。**e2e 里的假 PNG 必须自己算 CRC32 并带 `IHDR`+`IDAT`**，只塞 `tEXt` 的图会让 `createImageBitmap` 解码失败，缩略图永远停在「加载中」、`.image-button` 不渲染。
+
+**v1.18 新增并通过的**：`tests/v118.spec.ts`（3 用例）。覆盖：装配卡把固定块 + 质量标签 + 替换规则合成后写进 `{{prompt}}`（断言 POST 到 `/api/prompt` 的 body）、勾掉 ImageScale 后发送的图里没有节点 7 且节点 8 直连节点 6、固定块预设保存后能重新选中。
+- 写这个 spec 的两个坑：①`.assembly-toggle small` 的「命中 N 条」是拿 `settings.positive` 去跑规则的，**提示词没写之前永远是「命中 0 条」**，断言必须先填提示词；②要验证「发出去的东西」，就在 `page.route("**/__native")` 里把 `command === "api" && args.path === "/api/prompt"` 的 body 收集起来，别去解析 UI。
 
 **仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
 
@@ -586,6 +604,48 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 3. **`src-tauri/gen/android/app/tauri.properties` 不在 git 里**，每次 bump 必须手改 `versionName` + `versionCode`，漏改就会把上一版的 versionCode 打进新包（Gradle 读它，不读 package.json）。
 
 **修正动作**：改 `tauri.properties` 为 `1.17.0 / 11700` → 真 keystore 重签 → 替换 Release 资产 + 正文（正文里「签名换了请卸载」那段已改写成「直接覆盖安装即可」）。
+
+
+## 9.9 v1.18 变更清单（本轮迭代：工坊改造）
+
+灵感来自 `github.com/damoshen123/st-chatu8` 的 ComfyUI 面板（SillyTavern 扩展）。**只搬了四个机制，没有搬它的框架**：它是单文件 5 MB 的 `index.js` + jQuery，与 Tauri/React 无关；可复用的是「提示词在离开客户端前被装配」这一层。
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 提示词装配卡 | 新增 `src/promptRules.ts`（规则引擎）、`src/PromptAssembly.tsx` + `src/prompt-assembly.css`（UI）；`App.tsx` 挂 `<PromptAssembly>` 在 `<PromptSection>` 之前 | 四栏：前置固定 / 后置固定 / 质量标签（正面）/ 质量标签（负面）。工作流里的 `{{prompt}}` 收到的是装配后的结果，不是 `settings.positive` 原文 |
+| 2 | 替换规则引擎 | `src/promptRules.ts` 的 `applyRules` / `assemble` / `assembleNegative` / `finalPrompt` / `finalNegative` | 每行 `触发词 | 类型 | 内容`，取**最后一个** `|` 切分；类型 ∈ `替换` / `前置前` / `前置后` / `后置前` / `后置后` / `最后置`；触发词可用 `|` 并列，`/…/` 包裹按正则。**刻意不移植 st-chatu8 的 `@if` 条件**（原实现是 eval 级 `safeEvaluateIf`）。新增 `dedupeTags()` 去重与空白归一 |
+| 3 | 三套命名集合 | 新增 `src/promptPresets.ts`；`PromptAssembly.tsx` 的三个 picker | `prompt-fix-presets-v1`（固定块）、`prompt-rule-presets-v1`（规则表）、`prompt-profiles-v1`（整套 config，含 settings + workflowName）。各 LIMIT 80 |
+| 4 | 节点跳过 / 旁路 | 新增 `src/nodeSkip.ts`；`WorkflowCanvas.tsx` 加 `.node-skip` 开关与 `.graph-node.skipped` 虚线；`App.tsx` 的 `generate()` 在 `resolveGraph` 之后调 `applySkips` | 节点上写 `_skip: true`，发送前剥掉并把消费者重连真实上游（`resolveSource` 按输出类型打分，`guard > 64` 防环）。等价于 st-chatu8 的 `processSkippedNodes`，但这里是纯函数 |
+| 5 | 画布工具条计数 | `WorkflowCanvas.tsx` 的 `.canvas-count` | 由「N 个节点 · N 个占位符」扩为「N 个节点 · N 个占位符 · N 条连线 · N 个已跳过」（后两项仅在非零时出现），`graphStats()` 提供 |
+| 6 | 版本 + i18n | `_build/bump-1.18.0.mjs`、`_build/add-v118-strings.mjs` | 1.18.0 / versionCode **`11800`**；locale 986 → **1026** 键（新增 40 条） |
+
+**装配顺序**（`assemble`）：`前置前 → before → 前置后 → modifiedPrompt → 后置前 → after → 后置后 → quality → 最后置`，空槽折叠后 `dedupeTags`。
+**负面装配**（`assembleNegative`）：`qualityNegative` 提到最前，其余同序。
+**生成链交给服务器的是**：`resolveGraph(custom, {positive: finalPrompt(...), negative: finalNegative(...)})` → `applySkips(...)` → `checkWorkflow` → `POST /api/prompt`。`rememberPrompt` 也存装配后的结果。
+
+**校验**：`npx tsc -b` 无输出；`npx vitest run` **17 文件 / 97 测试**全绿（新增 `src/promptRules.test.ts` 14 条、`src/nodeSkip.test.ts` 8 条）；`npx vite build` 通过（`index-CN2jNNnd.js` 473 808 B / `index-4xTMGQ37.css` 117 390 B / `Glossary-*.js` 583 kB）；`npx playwright test tests/v114 tests/v115 tests/v116 tests/v118` → **13 passed**。
+- 顺手补了个类型缺口：`NodeInfo` 原来没有 `output` 字段，`nodeSkip.ts` 读 `info[classType].output` 只能靠 `as` 硬转，`nodeSkip.test.ts` 的 fixture 直接被 TS2353 拦下。已在 `src/api.ts:35-42` 给 `NodeInfo` 加上 `output?: unknown`（注释写明是给旁路重连用的）。
+
+**e2e 覆盖（`tests/v118.spec.ts`，3 例）**：
+1. 装配卡把固定块 + 质量标签 + 规则合成后写进 `{{prompt}}`：断言 `posted[0].prompt["2"].inputs.text === "solo, masterpiece, 1girl, beret, best quality"`。
+2. 跳过的节点不进服务器：勾选 ImageScale 后生成，断言 `prompt["7"] === undefined` 且 `prompt["8"].inputs.images === ["6", 0]`。
+3. 固定块预设保存后能被重新选中（picker 2 个 option，选中后 textarea 回填）。
+
+**已知取舍**：
+- 装配卡只在工坊页，`PromptStudio`（LLM 生成那页）不经过它。
+- 规则表的「替换」是大小写不敏感的全局替换，中文触发词同样有效。
+- `Describe`（素材库发到画面描述）与装配卡互不感知：素材库写的是 `settings.positive`，装配卡再包一层。
+
+**同轮追加：详细提示词可编辑 / 复制全部 / 写回工坊**
+- `src/ImageDetails.tsx` 加 `onApply?: (positive, negative) => void`，并新增 `editing` / `positive` / `negative` 三个 state。
+- 两段提示词由 `<pre>` 改为「`<pre>` ↔ `<textarea className="detail-edit">`」二选一；`editing` 由底部「编辑」按钮切（文案 `Modifier` ↔ `Fin de l'édition`）。
+- 新增 `.detail-actions` 四个按钮：编辑 / 还原（`dirty` 时出现，把两个值复位成 PNG 里的原文）/ 复制全部 / 写回工坊。
+- 「复制全部」拼 `Prompt positif:` + `Prompt négatif:` + 十行参数为纯文本，一次复制整份。
+- 「写回工坊」走 `Viewer` 的新 prop `onApplyPrompt` → `App.tsx` 里 `setSettings(s => ({...s, positive, negative}))` + `setImported(null)` + `setViewer(null)` + `setTab("create")` + Toast「提示词已写回工坊。」。
+- **编辑只改这里的副本，不回写图片文件**（弹层底部有 `.detail-hint` 明确写这句）。要让 `Viewer` 的 `return` 继续保持 fragment，`<dialog>` 不能嵌套 `showModal()`。
+- i18n `_build/add-v118b-strings.mjs`：+7 条，locale 1026 → **1033** 键。
+- e2e `tests/v116.spec.ts` 新增第 3 例「the detailed prompt can be edited, copied and pushed to the studio」：断言初始无 `.detail-edit`、点编辑后 textarea 有值、`fill` 新词后「复制全部」读出剪贴板含新词与参数、点「还原」回到 `quiet library`、再改后「写回工坊」使弹层关闭且 `.prompt-entry.positive-entry` 含 `neon city`。**3 passed（18.5s）**。
+  - 读剪贴板要先 `page.context().grantPermissions(["clipboard-read","clipboard-write"])`。
 
 
 ---

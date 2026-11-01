@@ -193,7 +193,10 @@ test("the wardrobe offers four shelves, searches and feeds the prompt", async ({
     await bedroom.click();
   });
   await expect(page.locator(".glossary-selection")).toBeVisible();
-  await expect(page.locator(".selected-tags button")).toContainText(["bedroom"]);
+  // v1.17 renders the chips in Chinese while the tags they carry stay English.
+  await expect(page.locator(".selected-tags button").first()).toContainText(
+    "卧室",
+  );
 
   // "Positif" writes the tags into the Atelier prompt.
   await page.locator(".glossary-selection .primary").click();

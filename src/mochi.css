@@ -2150,6 +2150,57 @@ label select {
   background: #f6f6f6;
   border-radius: 12px;
 }
+.image-details .detail-edit {
+  width: 100%;
+  min-height: 0;
+  padding: 11px;
+  border: 1px solid #d8d8d8;
+  border-radius: 12px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  resize: vertical;
+}
+.image-details .detail-edit:focus {
+  outline: none;
+  border-color: var(--accent, #111);
+}
+.image-details .detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.image-details .detail-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #e3e3e3;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  color: #333;
+}
+.image-details .detail-actions > button:active {
+  background: #f2f2f2;
+}
+.image-details .detail-actions > button.primary {
+  background: var(--primary, #111);
+  border-color: var(--primary, #111);
+  color: #fff;
+}
+.image-details .detail-actions > button:disabled {
+  opacity: 0.45;
+}
+.image-details .detail-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #6d6d6d;
+}
 .image-details .detail-rows {
   display: grid;
   gap: 1px;

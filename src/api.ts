@@ -5,6 +5,8 @@ export interface NodeDef {
   class_type: string;
   inputs: Record<string, unknown>;
   _meta?: { title: string };
+  /** v1.18: set by the canvas to bypass this node when generating. */
+  _skip?: boolean;
 }
 export type Workflow = Record<string, NodeDef>;
 export interface ImageRef {
@@ -35,6 +37,8 @@ export interface NodeInfo {
     required: Record<string, unknown[]>;
     optional?: Record<string, unknown[]>;
   };
+  /** Output slot names, in slot order — needed to rewire around skipped nodes. */
+  output?: unknown;
 }
 export type ObjectInfo = Record<string, NodeInfo>;
 export interface HistoryEntry {

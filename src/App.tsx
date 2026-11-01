@@ -55,6 +55,15 @@ import CollapsibleCard from "./CollapsibleCard";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowShelf from "./WorkflowShelf";
 import { autoBind, resolveGraph } from "./workflowBindings";
+import { applySkips } from "./nodeSkip";
+import {
+  emptyAssembly,
+  finalNegative,
+  finalPrompt,
+  type Assembly,
+} from "./promptRules";
+import type { ProfilePayload } from "./promptPresets";
+import PromptAssembly from "./PromptAssembly";
 import PromptSection from "./PromptSection";
 import StudioNav from "./StudioNav";
 import mochiHeader from "../assets/brand/expressions/open.webp";
@@ -165,6 +174,15 @@ export default function App() {
     [workflowName, setWorkflowName] = useState(""),
     [workflowId, setWorkflowId] = useState(""),
     [imported, setImported] = useState<Imported | null>(null);
+  // v1.18: prompt assembly lives outside the graph, so a workflow's {{prompt}}
+  // receives the composed text without rewriting the imported JSON.
+  const [assembly, setAssembly] = useState<Assembly>(() => ({
+    ...emptyAssembly,
+    ...stored<Partial<Assembly>>("prompt-assembly", {}),
+  }));
+  const [rulesText, setRulesText] = useState(() =>
+    stored<string>("prompt-rules", ""),
+  );
   const submitLock = useRef(false),
     generation = useRef(0),
     galleryRequest = useRef(0),
@@ -214,6 +232,12 @@ export default function App() {
     if (tab === "glossary") setGlossaryVisited(true);
   }, [tab]);
   useSettingsPersistence(settings, server);
+  useEffect(() => {
+    writeStored("prompt-assembly", assembly);
+  }, [assembly]);
+  useEffect(() => {
+    writeStored("prompt-rules", rulesText);
+  }, [rulesText]);
 
   const hydrate = useCallback(
     async (url: string, initial = false, version = generation.current) => {
@@ -346,14 +370,24 @@ export default function App() {
         safe.vae !== settings.vae
       )
         setSettings(safe);
+      // v1.18: fixed blocks, quality tags and replacement rules are layered on
+      // top of the typed prompt, then handed to `{{prompt}}` / `{{negative}}`.
+      const composed: Settings = {
+        ...safe,
+        positive: finalPrompt(safe.positive, rulesText, assembly).text,
+        negative: finalNegative(safe.negative, rulesText, assembly).text,
+      };
+      // v1.18: `_skip` nodes are stripped and their consumers rewired before
+      // validation, so a bypassed node never reaches ComfyUI.
+      const prepared = applySkips(resolveGraph(custom, composed), info);
       const builds: { workflow: Workflow; settings?: Settings }[] = [
         // Placeholders (`{{prompt}}`, `{{sampler}}`…) are resolved here so the
         // prompt card and the placeholder editors drive the imported graph.
-        { workflow: resolveGraph(custom, safe), settings: safe },
+        { workflow: prepared.graph, settings: composed },
       ];
       builds.forEach((b) => checkWorkflow(b.workflow, info));
       try {
-        rememberPrompt(settings);
+        rememberPrompt(composed);
       } catch (e) {
         setNotice(String(e));
       }
@@ -1072,6 +1106,24 @@ export default function App() {
               )}
             </CollapsibleCard>
           </div>
+          <PromptAssembly
+            assembly={assembly}
+            onAssembly={setAssembly}
+            rulesText={rulesText}
+            onRules={setRulesText}
+            settings={settings}
+            workflowName={workflowName}
+            onApplyProfile={(payload: ProfilePayload) => {
+              setAssembly(payload.assembly);
+              setRulesText(payload.rulesText);
+              if (payload.settings)
+                setSettings(normalizeSettings(payload.settings as Settings));
+              if (payload.workflowName) setWorkflowName(payload.workflowName);
+              setError("");
+            }}
+            onMessage={notify}
+            onError={setError}
+          />
           <PromptSection
             settings={settings}
             onChange={setSettings}
@@ -1566,6 +1618,13 @@ export default function App() {
             onFavorite={favorite}
             onTrash={deleteImage}
             onReuse={reuse}
+            onApplyPrompt={(positive, negative) => {
+              setSettings((s) => ({ ...s, positive, negative }));
+              setImported(null);
+              setViewer(null);
+              setTab("create");
+              setNotice(tr("提示词已写回工坊。"));
+            }}
             onMore={
               viewer.fromGallery && gallery.items.length < gallery.total
                 ? async () => {

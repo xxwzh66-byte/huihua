@@ -30,6 +30,7 @@ export default function Viewer({
   onTrash,
   onReuse,
   onMore,
+  onApplyPrompt,
 }: {
   items: ViewItem[];
   index: number;
@@ -39,6 +40,8 @@ export default function Viewer({
   onTrash: (item: ViewItem) => Promise<void>;
   onReuse: (item: ViewItem, url: string) => Promise<void>;
   onMore?: () => Promise<ViewItem[]>;
+  /** v1.18: push an edited prompt from the details sheet back into the studio. */
+  onApplyPrompt?: (positive: string, negative: string) => void;
 }) {
   const item = items[index],
     [urls, setUrls] = useState<Record<string, string>>({}),
@@ -570,6 +573,7 @@ export default function Viewer({
       <ImageDetails
         url={url}
         name={item.name}
+        onApply={onApplyPrompt}
         onClose={() => setDetails(false)}
       />
     )}

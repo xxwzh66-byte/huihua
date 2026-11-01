@@ -147,6 +147,51 @@
   box-shadow: 0 0 0 2px #1b1b1b inset;
 }
 
+/* v1.18: a skipped node stays visible but is dashed and faded, matching the
+   fact that it will not run. */
+.graph-node.skipped {
+  border-style: dashed;
+  opacity: 0.5;
+}
+
+.canvas-skipped {
+  color: #8a6a12;
+}
+
+.node-skip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line, #e4e4e4);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.node-skip input {
+  flex: none;
+  margin-top: 2px;
+  accent-color: #1b1b1b;
+}
+
+.node-skip span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.node-skip strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.node-skip small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted, #6d6d6d);
+}
+
 .graph-icon {
   position: relative;
   display: grid;

@@ -38,6 +38,7 @@ import {
   usedBindings,
 } from "./workflowBindings";
 import type { Settings } from "./workflow";
+import { graphStats, skipStatus, skippedNodes } from "./nodeSkip";
 import "./workflow-canvas.css";
 
 type Props = {
@@ -138,6 +139,8 @@ export default function WorkflowCanvas({
     [graph, info],
   );
   const bound = useMemo(() => usedBindings(graph), [graph]);
+  const stats = useMemo(() => graphStats(graph), [graph]);
+  const skipped = useMemo(() => skippedNodes(graph).length, [graph]);
 
   const active = graph[selected] ? selected : "";
   const activeNode = active ? graph[active] : null;
@@ -202,6 +205,20 @@ export default function WorkflowCanvas({
             <>
               {" · "}
               {tr("{0} 个占位符", [bound.length])}
+            </>
+          )}
+          {stats.links > 0 && (
+            <>
+              {" · "}
+              {tr("{0} 条连线", [stats.links])}
+            </>
+          )}
+          {skipped > 0 && (
+            <>
+              {" · "}
+              <span className="canvas-skipped">
+                {tr("{0} 个已跳过", [skipped])}
+              </span>
             </>
           )}
         </span>
@@ -302,7 +319,7 @@ export default function WorkflowCanvas({
                 <button
                   key={node.id}
                   type="button"
-                  className={`graph-node ${nodeAccent}${isActive ? " selected" : ""}`}
+                  className={`graph-node ${nodeAccent}${isActive ? " selected" : ""}${data._skip ? " skipped" : ""}`}
                   style={{
                     left: node.x,
                     top: node.y,
@@ -350,6 +367,42 @@ export default function WorkflowCanvas({
               <X size={16} />
             </button>
           </header>
+          {(() => {
+            const skip = skipStatus(graph, active, info);
+            const off = activeNode._skip === true;
+            return (
+              <label className="node-skip">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={off}
+                  disabled={!skip.canSkip && !off}
+                  aria-label={tr("跳过此节点")}
+                  onChange={(e) => {
+                    const next: Workflow = {
+                      ...graph,
+                      [active]: { ...activeNode, _skip: e.target.checked },
+                    };
+                    if (!e.target.checked) delete next[active]._skip;
+                    onChange(next);
+                    onMessage(
+                      e.target.checked
+                        ? tr("节点 {0} 已跳过，生成时会旁路。", [active])
+                        : tr("节点 {0} 已恢复。", [active]),
+                    );
+                  }}
+                />
+                <span>
+                  <strong>{tr("跳过此节点")}</strong>
+                  <small>
+                    {skip.canSkip
+                      ? tr("执行时会把下游直接接到它的上游。")
+                      : tr("这个节点没有上游输入，不能跳过。")}
+                  </small>
+                </span>
+              </label>
+            );
+          })()}
           <div className="node-fields">
             {activeFields.map((field) => (
               <NodeField
