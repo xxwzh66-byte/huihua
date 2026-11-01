@@ -244,9 +244,10 @@ D:\demo\android-sdk\build-tools\35.0.0\apksigner.bat sign `
 ### 签名身份（不要换！）
 
 - keystore：`_build/huihua-release.jks`，**PKCS12**，storepass `huihua2026`，key alias `huihua`，keypass 同 storepass。
-- 证书：`CN=HuiHua Local Build`，SHA-256 `9fe3dac1f8807221bb66b8526b24684caa952a014d1e3fb219b831f40432bf9f`。
-- 1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 / 1.1.3 **全部同一证书**，所以能原地覆盖升级。换 keystore = 用户必须卸载重装，别做。
-- `*.jks` 在 `.gitignore` 里，**备份它**。
+- 证书：`CN=HuiHua Local Build`，SHA-256 `9fe3dac1f8807221bb66b8526b24684caa952a014d1e3fb219b831f40432bf9f`，SHA-1 `288a47d9be3794805970d2a6634807ba45b62115`。
+- 1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 / 1.1.3 / 1.14.0 / 1.15.0 / 1.16.0 / 1.17.0 **全部同一证书**，所以能原地覆盖升级。换 keystore = 用户必须卸载重装，别做。**1.17.0 第一次发布就是拿另一把密钥签的，直接翻车——详见 §9.8 的事故表。**
+- `_build/build-apk.ps1` 已把「证书指纹必须等于 `$ExpectedCert`」和「versionCode 必须等于由 `package.json` 算出的 `$ExpectedCode`」做成硬性自检：不符就 `Remove-Item $apk` 再 `exit 1`，脏包出不了 `dist-apk/`。
+- `*.jks` 在 `.gitignore` 里，**备份它**。别因为「这台机器上没有」就临时生成一把新的——仓库里的这一份才是唯一的合法签名身份。
 - 老别名 `comfypocket` + 密码 `mochi2026` 会报 `UnrecoverableKeyException ... BadPaddingException`，别试。
 
 ### 验证三件套
@@ -257,7 +258,7 @@ D:\demo\android-sdk\build-tools\35.0.0\aapt2.exe dump badging dist-apk\huihua-<V
 Get-FileHash dist-apk\huihua-<VER>-arm64.apk -Algorithm SHA256
 ```
 
-`aapt2` 期望：`package='app.huihua.paint' versionCode='10<minor><patch>' versionName='1.1.x'`、`application-label:'绘画'`。
+`aapt2` 期望：`package='app.huihua.paint' versionCode='<10000 + minor*100 + patch>'`（1.17.0 → `11700`）、`versionName='1.17.0'`、`application-label:'绘画'`。**签名的 DN / 证书指纹必须是上面那一串**，对不上就是这个包不能发。
 
 ### 验证前端真的被嵌进去了（唯一可靠方法）
 
@@ -563,7 +564,29 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - **本地 sha 与上游不同**：上游那两个提交是 Git Data API 直接造的，本地工作副本还是 `331516f` / `52ec453` / `f87f746`，树内容一致但 sha 不同。`github.com` 不通没法 `git fetch` 对齐，下一轮用 `_build/diff-vs-upstream.cjs` 按 blob sha 比对即可，不用担心「本地落后」。
 - `_build/probe-upstream.cjs` 只读探测上游状态；`_build/diff-vs-upstream.cjs` 对比本地 HEAD 与上游 main 的 blob sha，确认没有「上游已改过、本地要覆盖」的冲突（1.17.0 结果：`changed=23 identical-to-upstream=0 upstream-moved=0`）。
 
-**没做成的**：本机没有 Android 工具链（`D:\demo\toolchain`、`D:\demo\android-sdk` 均不存在）、没有 `_build/huihua-release.jks` 签名，因此 1.17.0 **只到源码 + 前端产物**，没有 APK 资产，Release 会发成 draft。出包要在原开发机（`D:\demo\Paint-v1`）按第 5 节四步跑完，再把 `huihua-1.17.0-arm64.apk` 放到 `dist-apk/` 重跑发布脚本，脚本会自动上传并把 Release 转正。
+**构建产物（1.17.0 最终版，签名已修正）**：`dist-apk/huihua-1.17.0-arm64.apk`（75 269 887 字节，versionCode **`11700`**，versionName `1.17.0`，SHA-256 `8aa2c691e35a3bfcd0ca9559fbb22eb7ac4046bdb48542ecc17770b6542b687a`，**签名证书 SHA-256 `9fe3dac1f8807221bb66b8526b24684caa952a014d1e3fb219b831f40432bf9f`**，与 1.0 → 1.16 全部版本同指纹，可直接覆盖升级）。`dist/assets` 下 8 个 js/css 全部 embedded 进 `libhuihua_lib.so`。
+
+### ⚠️ 1.17.0 第一次发布的重大事故：签名换错了
+
+第一版 `huihua-1.17.0-arm64.apk`（`sha256:158413f8…3add`，Release id `429714462`）是**用另一把临时密钥签的**：
+
+| | 历史版本 1.0–1.16（正确） | 出事的那个 1.17.0 包 |
+| --- | --- | --- |
+| 证书 SHA-256 | `9fe3dac1f8807221bb66b8526b24684caa952a014d1e3fb219b831f40432bf9f` | `593b14d8843cef2a41658e25b577bbf1943c60ff4c38406b83a60a8c31c89844` |
+| 证书 DN | `CN=HuiHua Local Build, OU=Local, O=HuiHua, L=Local, ST=Local, C=CN` | `CN=huihua, OU=huihua, O=huihua, L=CN, ST=CN, C=CN` |
+| versionCode | `11700` | `1017000`（错把 minor 当成 1.17 而不是 17） |
+
+后果：老用户**覆盖安装必然失败**（`INSTALL_FAILED_UPDATE_INCOMPATIBLE` / 「应用未安装」）。发行说明里当时还写了「这一版的签名换了，请先卸载旧版」——那是把事故当成了正常变更，完全错误。
+
+**根因**：那份工作是在另一台机器上做的，那台机器既没有 `D:\demo\toolchain` / `D:\demo\android-sdk`，也没有 `_build/huihua-release.jks`，于是有人新生成了一把 keystore 把包签了。keystore 一直好好躺在仓库里，只是那台机器没拿到。
+
+**三个永久教训（已写进构建脚本自检）**：
+1. **签名证书必须恒等于 `9fe3dac1…bf9f`**。`_build/build-apk.ps1` 现在签名后读 `apksigner verify --print-certs` 比对 `$ExpectedCert`，不符就删包 `exit 1`，传不上去。
+2. **versionCode 规则是 `10000 + minor*100 + patch`，minor 是整段数字**：1.17.0 → `11700`，不是 `1017000`、也不是 `10107`。脚本从 `package.json` 的 `$Version` 正则算出 `$ExpectedCode`，并对 `tauri.properties` 做前置检查，不符直接拒绝构建。
+3. **`src-tauri/gen/android/app/tauri.properties` 不在 git 里**，每次 bump 必须手改 `versionName` + `versionCode`，漏改就会把上一版的 versionCode 打进新包（Gradle 读它，不读 package.json）。
+
+**修正动作**：改 `tauri.properties` 为 `1.17.0 / 11700` → 真 keystore 重签 → 替换 Release 资产 + 正文（正文里「签名换了请卸载」那段已改写成「直接覆盖安装即可」）。
+
 
 ---
 

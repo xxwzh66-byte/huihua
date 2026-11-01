@@ -20,7 +20,10 @@ param(
   [string]$Version = "",
   [string]$Keystore = "",
   [string]$KeyAlias = "huihua",
-  [string]$KeyPass = "huihua2026"
+  [string]$KeyPass = "huihua2026",
+  # 历史 1.0 → 1.16 全部用这把证书签的。换掉它等于让所有老用户装不上新版，
+  # v1.17.0 第一次发布就是这么翻车的（线上包用的是 593b14d8…）。
+  [string]$ExpectedCert = "9fe3dac1f8807221bb66b8526b24684caa952a014d1e3fb219b831f40432bf9f"
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,6 +51,15 @@ if (-not $Version) {
   $Version = (Get-Content (jp $root "package.json") -Raw | ConvertFrom-Json).version
 }
 if (-not $Keystore) { $Keystore = jp $PSScriptRoot "huihua-release.jks" }
+
+# versionCode 规则：10000 + minor*100 + patch（1.17.0 → 11700）。minor 是整段数字，
+# 不是个位：1.17 不是 1.7。
+$ExpectedCode = 0
+if ($Version -match '^\d+\.(\d+)\.(\d+)$') {
+  $ExpectedCode = 10000 + [int]$Matches[1] * 100 + [int]$Matches[2]
+} else {
+  Fail "版本号 '$Version' 不是 x.y.z 形状，算不出 versionCode"
+}
 
 $jdk = Get-ChildItem (jp $Toolchain "jdk17") -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer } | Select-Object -First 1
 $ndk = Get-ChildItem (jp $Toolchain "android-ndk-*") -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer } | Select-Object -First 1
@@ -97,6 +109,21 @@ Write-Host "工具链 $Toolchain"
 Write-Host "SDK    $Sdk"
 Write-Host ""
 
+# tauri.properties 不在 git 里，每次 bump 都要手改，漏改就会把旧 versionCode 打进包。
+$props = jp $android "app\tauri.properties"
+if (Test-Path $props) {
+  $text = [System.IO.File]::ReadAllText($props)
+  if ($text -notmatch "tauri\.android\.versionCode=$ExpectedCode(\s|$)") {
+    $found = if ($text -match "tauri\.android\.versionCode=(\d+)") { $Matches[1] } else { "（没有）" }
+    Write-Host "tauri.properties 的 versionCode 是 $found，应为 $ExpectedCode。" -ForegroundColor Red
+    Write-Host "改：$props  → tauri.android.versionName=$Version / tauri.android.versionCode=$ExpectedCode"
+    exit 1
+  }
+} else {
+  Write-Host "找不到 $props，Gradle 会用默认 versionCode，先跑一次 tauri android init。" -ForegroundColor Red
+  exit 1
+}
+
 # 1) 前端产物
 Push-Location $root
 & node node_modules/vite/bin/vite.js build
@@ -141,11 +168,29 @@ $apksigner = jp $Sdk "build-tools\35.0.0\apksigner.bat"
   --ks-pass "pass:$KeyPass" --key-pass "pass:$KeyPass" --out $apk $unsigned
 if ($LASTEXITCODE -ne 0) { Fail "apksigner" }
 
-# 6) 三件套
-& $apksigner verify --print-certs $apk | Select-Object -First 4
+# 6) 证书指纹必须等于历史版本，否则老用户无法覆盖升级（v1.17.0 就栽在这里过一次）
+$certs = & $apksigner verify --print-certs $apk 2>&1
+$certs | Select-Object -First 4
+$digest = ($certs | Select-String "certificate SHA-256 digest" | Select-Object -First 1)
+$actual = if ($digest) { ($digest.ToString() -split ":\s*")[1].Trim().ToLower() } else { "" }
+if ($actual -ne $ExpectedCert.ToLower()) {
+  Remove-Item $apk -Force
+  Fail "签名证书不匹配。期望 $ExpectedCert，实际 '$actual'。这个 APK 已删除，别上传它——老版本装不上去"
+}
+
+# 7) versionCode 必须符合 10000 + minor*100 + patch，且与 versionName 同源
 $aapt = jp $Sdk "build-tools\35.0.0\aapt2.exe"
 if (Test-Path $aapt) {
-  & $aapt dump badging $apk | Select-String "package:|application-label:" | Select-Object -First 2
+  $badging = & $aapt dump badging $apk 2>&1
+  $badging | Select-String "package:|application-label:" | Select-Object -First 2
+  $line = ($badging | Select-String "versionCode=" | Select-Object -First 1).ToString()
+  if ($line -match "versionCode='(\d+)'") {
+    $code = [int]$Matches[1]
+    if ($code -ne $ExpectedCode) {
+      Remove-Item $apk -Force
+      Fail "versionCode 是 $code，应为 $ExpectedCode（见 tauri.properties）。已删除这个 APK"
+    }
+  }
 }
 $hash = (Get-FileHash $apk -Algorithm SHA256).Hash.ToLower()
 Write-Host ""
