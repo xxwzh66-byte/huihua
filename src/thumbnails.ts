@@ -26,6 +26,22 @@ export function fitSize(
 type Bitmap = { width: number; height: number; source: CanvasImageSource };
 
 async function decode(url: string): Promise<Bitmap> {
+  // `imageUrl` already hands back a `data:` URL. Fetching it would be subject
+  // to the CSP `connect-src` list, which only lists `self` plus the IPC
+  // bridges, so the request was blocked before it ever reached the canvas and
+  // every gallery cell fell back to "Image indisponible". Decoding through
+  // `<img>` stays inside `img-src` (where `data:` is allowed) and skips a
+  // pointless base64 round trip.
+  if (url.startsWith("data:")) {
+    const direct = new Image();
+    direct.src = url;
+    await direct.decode();
+    return {
+      width: direct.naturalWidth,
+      height: direct.naturalHeight,
+      source: direct,
+    };
+  }
   const response = await fetch(url);
   if (!response.ok) throw new Error("thumbnail source unavailable");
   const blob = await response.blob();

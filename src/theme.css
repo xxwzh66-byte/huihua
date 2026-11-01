@@ -1,0 +1,649 @@
+/*
+ * Appearance themes (v1.19).
+ *
+ * `styles.css` was written with literal colours for most surfaces, so switching
+ * only the `--ink / --muted / --line` variables produced a white app with
+ * differently coloured text. This sheet is imported last and re-declares the
+ * handful of surface rules that matter, this time through the theme tokens.
+ *
+ * Keep the "pure" block first: it must reproduce the original pure-white look
+ * exactly, because that is still the default.
+ */
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-soft: #fbfbfb;
+  --surface-raised: #ffffffc9;
+  --ink: #1b1b1b;
+  --muted: #6d6d6d;
+  --accent: #1b1b1b;
+  --line: #e4e4e4;
+  --panel: #ffffff;
+  --hover: #f2f2f2;
+  --pressed: #e9e9e9;
+  --swatch: #ffffff;
+}
+
+:root[data-theme="warm"] {
+  --bg: #faf5ec;
+  --surface: #fffdf8;
+  --surface-soft: #f6efe3;
+  --surface-raised: #fffdf8e6;
+  --ink: #3d3226;
+  --muted: #7c6a55;
+  --accent: #8a5a2b;
+  --line: #e6dac6;
+  --panel: #fffdf8;
+  --hover: #f1e7d8;
+  --pressed: #e8dbc7;
+  --swatch: #faf5ec;
+}
+
+:root[data-theme="mint"] {
+  --bg: #eef6f2;
+  --surface: #ffffff;
+  --surface-soft: #f2faf6;
+  --surface-raised: #ffffffe6;
+  --ink: #16302a;
+  --muted: #5b7a70;
+  --accent: #1f6b55;
+  --line: #d2e7dd;
+  --panel: #ffffff;
+  --hover: #e7f4ee;
+  --pressed: #dcefe6;
+  --swatch: #eef6f2;
+}
+
+:root[data-theme="ink"] {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-soft: #f7f8fa;
+  --surface-raised: #ffffffe6;
+  --ink: #22252c;
+  --muted: #5d626d;
+  --accent: #2c3d5c;
+  --line: #dcdfe6;
+  --panel: #ffffff;
+  --hover: #eceef2;
+  --pressed: #e2e5ec;
+  --swatch: #f4f5f7;
+}
+
+:root[data-theme="night"] {
+  --bg: #15171c;
+  --surface: #1c1f26;
+  --surface-soft: #22262e;
+  --surface-raised: #1c1f26;
+  --ink: #e8e9ee;
+  --muted: #9aa1ae;
+  --accent: #dfe3ea;
+  --line: #2e333d;
+  --panel: #1c1f26;
+  --hover: #262a33;
+  --pressed: #2d323c;
+  --swatch: #15171c;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+button {
+  background: var(--surface-raised);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--muted);
+}
+
+button:active:not(:disabled) {
+  background: var(--pressed);
+}
+
+input,
+textarea,
+select {
+  background: var(--surface-soft);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--swatch);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  opacity: 0.88;
+}
+
+/* Surfaces that were painted with literal white in the earlier sheets. */
+.panel,
+.collapsible-card,
+.settings-group,
+.glossary-selection,
+.workflow-canvas,
+.canvas-detail,
+.assembly-final,
+.assembly-preview,
+.image-details,
+.prompt-entry,
+.preset-current,
+.shelf-picker,
+.gallery-card,
+.result-strip img,
+.output-image,
+.output-empty,
+.code-editor,
+.startup-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.canvas-scroll,
+.canvas-stage,
+.prompt-assembly,
+.theme-card,
+.assembly-field textarea,
+.assembly-rules,
+.detail-text,
+.node-fields,
+.settings-menu,
+.setting-row {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.aside,
+.sidebar {
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+/* Appearance picker (v1.19). */
+.theme-row {
+  width: 100%;
+  text-align: left;
+}
+
+.theme-row small {
+  display: block;
+  margin-top: 3px;
+}
+
+.language-setting.static {
+  cursor: default;
+}
+
+.theme-dialog {
+  width: min(420px, calc(100% - 24px));
+}
+
+.theme-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.theme-options > button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.theme-options > button[aria-checked="true"] {
+  border-color: var(--accent);
+}
+
+.theme-swatch {
+  display: block;
+  width: 44px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-swatch > span {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  height: 6px;
+  border-radius: 3px;
+  opacity: 0.75;
+}
+
+.theme-options > button strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.theme-options svg {
+  color: var(--accent);
+}
+
+/* The night theme needs the media a shade darker so previews do not glare. */
+:root[data-theme="night"] img {
+  background: #101216;
+}
+
+:root[data-theme="night"] .release-notes-box,
+:root[data-theme="night"] .detail-rows > div {
+  background: #24272f;
+}
+
+/*
+ * `mochi.css` keeps three more surface tokens of its own. Re-point them at the
+ * theme so cards, chips and inset fields follow along instead of staying white.
+ */
+:root {
+  --canvas: var(--bg);
+  --field: var(--surface-soft);
+  --lavender: var(--surface-soft);
+}
+
+/* Surfaces the earlier sheets painted with literal white. */
+.card-heading > button,
+.card-heading > button:hover:not(:disabled),
+.card-heading > button:active:not(:disabled),
+.studio-prompts .prompt-entry,
+.prompt-shortcuts button,
+.prompt-shortcuts button:first-child,
+.studio-imports > .file-picker,
+.workflow-toolbar .file-picker,
+.studio-pc,
+.file-picker,
+.segmented,
+.segmented button,
+.batch-toolbar,
+.gallery-selection-tools button,
+.gallery-caption,
+.output-footer,
+.output-footer button,
+.live-badge,
+.binding-chip,
+.node-chip,
+.assembly-bar > button,
+.shelf-save-button,
+.shelf-open-button,
+.shelf-count,
+.prompt-conflict {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.prompt-shortcuts button,
+.prompt-shortcuts button:first-child,
+.studio-imports > .file-picker,
+.studio-pc,
+.batch-toolbar,
+.segmented,
+.segmented button,
+.live-badge,
+.binding-chip,
+.node-chip,
+.gallery-caption,
+.output-footer {
+  background: var(--surface-soft);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.live-badge,
+.output-footer button {
+  color: var(--muted);
+}
+
+.studio-prompts .negative-entry,
+.prompt-entry textarea,
+.assembly-bar .assembly-name {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.card-content,
+.panel > .card-content {
+  background: transparent;
+  color: var(--ink);
+}
+
+/*
+ * `mochi.css` re-paints a few of these on hover with literal white and a
+ * higher specificity, so the pointer resting on a card used to flash it white.
+ * These rules carry enough weight to win in every state.
+ */
+:root[data-theme] .studio-prompts .prompt-entry,
+:root[data-theme] .studio-prompts .prompt-entry:hover:not(:disabled),
+:root[data-theme] .studio-prompts .prompt-entry:active:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+:root[data-theme] .studio-prompts .negative-entry,
+:root[data-theme] .studio-prompts .negative-entry:hover:not(:disabled),
+:root[data-theme] .studio-prompts .negative-entry:active:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+:root[data-theme] .card-heading > button:hover:not(:disabled),
+:root[data-theme] .card-heading > button:active:not(:disabled),
+:root[data-theme] .theme-card:hover:not(:disabled),
+:root[data-theme] .theme-card:active:not(:disabled),
+:root[data-theme] .gallery-card:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* Inset media and chips that were painted with literal light greys. */
+.picture,
+.result-strip .picture,
+.output-image .picture,
+.gallery-card .picture,
+.nav-icon,
+.save-preset-shortcut,
+.studio-instruction-toggle,
+.studio-link,
+.llm-actions button:not(.primary):not(:disabled),
+.llm-actions button:disabled,
+details.settings-group > summary {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.nav-icon {
+  background: transparent;
+}
+
+.picture img {
+  background: transparent;
+}
+
+.studio-link {
+  background: transparent;
+  color: var(--accent);
+}
+
+details.settings-group > summary {
+  background: transparent;
+}
+
+:root[data-theme="night"] .picture {
+  background: #101216;
+}
+
+:root[data-theme="night"] .llm-actions button:disabled {
+  color: #6c7280;
+}
+
+:root[data-theme="night"] input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* Settings → generation API (`llm-settings.css` also hardcodes white). */
+.llm-presets button,
+.llm-actions button:not(.primary),
+.llm-actions button:disabled,
+.llm-template-list button,
+.llm-import,
+.llm-templates-head,
+.llm-row input[type="text"],
+.llm-row input[type="password"],
+.llm-row input[type="url"],
+.llm-row input:not([type]) {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.llm-presets button:hover,
+.llm-template-list button:hover,
+.llm-import:hover { 
+  background: var(--hover);
+}
+
+.llm-presets button[aria-pressed="true"],
+.llm-presets button.active {
+  border-color: var(--accent);
+}
+
+:root[data-theme="night"] .llm-actions button.primary {
+  background: var(--accent);
+  color: var(--swatch);
+}
+
+/* Wardrobe shelves and the render panel. */
+.theme-card,
+.render-panel,
+.studio-block,
+.workspace-block {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.theme-card:hover:not(:disabled),
+.theme-card[aria-pressed="true"] {
+  background: var(--surface-soft);
+  border-color: var(--accent);
+}
+
+.studio-block,
+.render-panel {
+  background: transparent;
+}
+
+.editor-paper,
+.code-editor,
+textarea,
+input,
+select {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.studio-hint.warning {
+  color: #c98a1b;
+}
+
+details.settings-group,
+details.settings-group > .settings-menu,
+.settings-hub,
+.connections, 
+.connection-form,
+.card-content {
+  background: transparent;
+  color: var(--ink);
+}
+
+/*
+ * Several sheets paint these with a two-class selector (`.prompt-studio
+ * .studio-block`, `.studio-imports > .save-preset-shortcut` …), which outranks
+ * the single-class rules above. `html[data-theme]` lifts these back on top
+ * without touching the "pure" theme, where every token is still white.
+ */
+html[data-theme] .panel,
+html[data-theme] section.panel,
+html[data-theme] .connection-form,
+html[data-theme] .studio-block,
+html[data-theme] .render-panel,
+html[data-theme] .prompt-studio .studio-block,
+html[data-theme] .settings-group,
+html[data-theme] .collapsible-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme] .card-content,
+html[data-theme] .render-panel,
+html[data-theme] .studio-block {
+  background: transparent;
+}
+
+html[data-theme] .studio-imports > .save-preset-shortcut,
+html[data-theme] .save-preset-shortcut,
+html[data-theme] .studio-instruction-toggle,
+html[data-theme] .workflow-toolbar .segmented,
+html[data-theme] .workflow-toolbar .file-picker,
+html[data-theme] .studio-imports > .file-picker,
+html[data-theme] .prompt-shortcuts button {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme] .studio-link,
+html[data-theme] .detail-block-head .studio-link {
+  background: transparent;
+  color: var(--accent);
+}
+
+html[data-theme] .studio-hint.warning {
+  background: var(--surface-soft);
+  color: #c98a1b;
+  border-color: #c98a1b55;
+}
+
+:root[data-theme="night"] .studio-hint.warning {
+  color: #e0a83c;
+}
+
+html[data-theme] .llm-row input[type="text"],
+html[data-theme] .llm-row input[type="password"],
+html[data-theme] .llm-row input[type="url"],
+html[data-theme] .llm-row input:not([type]),
+html[data-theme] .llm-presets button,
+html[data-theme] .llm-actions button:not(.primary):not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme] .prompt-studio textarea,
+html[data-theme] .studio-imports textarea,
+html[data-theme] textarea,
+html[data-theme] input:not([type="range"]):not([type="checkbox"]),
+html[data-theme] select {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* Two rules in `mochi.css` / `refinements.css` carry `!important`. */
+html[data-theme] .connection-form {
+  background: var(--surface) !important;
+}
+
+/* Toggle switches and the sticky generate bar keep literal greys. */
+html[data-theme] input[role="switch"] {
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+
+html[data-theme] input[role="switch"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+html[data-theme] input[role="switch"]::before {
+  background: var(--swatch);
+}
+
+:root[data-theme="night"] input[role="switch"]::before {
+  background: #e8e9ee;
+}
+
+html[data-theme] .generate-bar {
+  background: var(--surface-raised);
+  border-color: var(--line);
+}
+
+html[data-theme] .selected,
+html[data-theme] .collection-tabs button[aria-pressed="true"],
+html[data-theme] .segmented button[aria-pressed="true"],
+html[data-theme] .badge {
+  background: var(--surface-soft) !important;
+  color: var(--ink);
+}
+
+:root[data-theme="night"] .nav-icon {
+  color: var(--muted);
+}
+
+html[data-theme] .sidebar .nav .nav-icon {
+  background: transparent;
+}
+
+html[data-theme] .sidebar .nav.active .nav-icon {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+:root[data-theme="night"] input[role="switch"]:checked {
+  background: #4c5566;
+  border-color: #4c5566;
+}
+
+:root[data-theme="night"] .segmented button[aria-pressed="true"],
+:root[data-theme="night"] .selected,
+:root[data-theme="night"] .badge {
+  background: var(--surface-soft) !important;
+  color: var(--ink);
+}
+
+
+
+html[data-theme] .llm-settings .llm-row input[type="text" i],
+html[data-theme] .llm-settings .llm-row input[type="url" i],
+html[data-theme] .llm-settings .llm-row input:not([type]) {
+  background: var(--surface-soft) !important;
+}
+
+html[data-theme] .llm-settings .llm-template-list button,
+html[data-theme] .llm-settings .llm-presets button,
+html[data-theme] .llm-settings .llm-actions button:not(.primary),
+html[data-theme] .llm-settings .llm-import {
+  background: var(--surface-soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+
+
+
+
+

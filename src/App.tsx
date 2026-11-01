@@ -51,6 +51,7 @@ import {
 } from "./workflow";
 import { importImage, resolveImport, type Imported } from "./metadata";
 import { Picture, clearImageCache, clearThumbnailCache, type ViewItem } from "./components";
+import { readTheme, saveTheme, type ThemeId } from "./theme";
 import CollapsibleCard from "./CollapsibleCard";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowShelf from "./WorkflowShelf";
@@ -140,6 +141,7 @@ export default function App() {
   );
   const autoSaveRef = useRef(autoSave);
   autoSaveRef.current = autoSave;
+  const [theme, setTheme] = useState<ThemeId>(() => readTheme());
   const { tab, setTab, setInitialTab, handlers, trackRef } =
     usePageNavigation();
   const [server, setServer] = useState(""),
@@ -513,6 +515,18 @@ export default function App() {
   useEffect(() => {
     if (tab === "gallery" && server) void loadGallery().catch(() => {});
   }, [tab]);
+  // v1.19: a finished render used to stay invisible in the gallery until the
+  // user found the refresh button. Reload as soon as the queue drains.
+  const wasGenerating = useRef(false);
+  useEffect(() => {
+    if (jobs.length > 0) {
+      wasGenerating.current = true;
+      return;
+    }
+    if (!wasGenerating.current) return;
+    wasGenerating.current = false;
+    if (server) void loadGallery().catch(() => {});
+  }, [jobs.length, server]);
 
   const collection = (() => {
     const query = search.trim().toLowerCase();
@@ -856,6 +870,16 @@ export default function App() {
           onAutoSave={(value) => {
             setAutoSave(value);
             if (!writeStored("auto-save", value))
+              notify(
+                tr(
+                  "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
+                ),
+              );
+          }}
+          theme={theme}
+          onTheme={(value) => {
+            setTheme(value);
+            if (!saveTheme(value))
               notify(
                 tr(
                   "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
@@ -1222,14 +1246,6 @@ export default function App() {
               <div className="result-actions">
                 <button
                   disabled={resultBusy}
-                  aria-label={tr("Masquer ce résultat")}
-                  onClick={() => dismissResult(results[0])}
-                >
-                  <X size={18} />
-                  <span>{tr("Masquer")}</span>
-                </button>
-                <button
-                  disabled={resultBusy}
                   aria-label={tr("Favori du résultat")}
                   aria-pressed={!!results[0].gallery?.favorite}
                   onClick={() => void resultAction("favorite", results[0])}
@@ -1244,11 +1260,11 @@ export default function App() {
                 </button>
                 <button
                   disabled={resultBusy}
-                  aria-label={tr("Masquer ce résultat de la galerie")}
+                  aria-label={tr("Supprimer du résultat")}
                   onClick={() => void resultAction("trash", results[0])}
                 >
                   <Trash2 size={18} />
-                  <span>{tr("Masquer")}</span>
+                  <span>{tr("Supprimer")}</span>
                 </button>
               </div>
             )}

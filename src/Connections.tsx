@@ -1,6 +1,8 @@
 import { UpdateSettings } from "./AppUpdater";
 import "./settings-hub.css";
 import LanguagePicker from "./LanguagePicker";
+import Appearance from "./Appearance";
+import { type ThemeId } from "./theme";
 import { t as tr, locale } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -30,6 +32,8 @@ type Props = {
   onHandedness: (value: boolean) => void;
   autoSave: boolean;
   onAutoSave: (value: boolean) => void;
+  theme: ThemeId;
+  onTheme: (value: ThemeId) => void;
   server: string;
   busy: boolean;
   active: boolean;
@@ -61,6 +65,8 @@ export default function Connections({
   onHandedness,
   autoSave,
   onAutoSave,
+  theme,
+  onTheme,
   server,
   busy,
   onConnect,
@@ -337,13 +343,7 @@ export default function Connections({
         <div className="settings-group-content">
           <section className="settings-menu">
             <LanguagePicker />
-            <div className="setting-row">
-              <Palette />
-              <span>
-                <strong>{tr("Apparence")}</strong>
-                <small>{tr("Blanc pur · Clair")}</small>
-              </span>
-            </div>
+            <Appearance theme={theme} onTheme={onTheme} />
             <div className="setting-row">
               <Download />
               <span>

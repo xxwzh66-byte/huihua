@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.18.0**（versionCode `11800`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.19.0**（versionCode `11900`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -9,7 +9,7 @@
 
 ## 1. 这是什么
 
-一个 ComfyUI 的 Android 客户端（Tauri 2 + React 19），中文优先，界面纯白。
+一个 ComfyUI 的 Android 客户端（Tauri 2 + React 19），中文优先。默认主题是纯白（v1.19 起另有四套可切换，见「设置」页）。
 
 核心主张：**手机上只做「写提示词 / 调参数 / 看进度」，出图的算力全留在自己的 ComfyUI 服务器上。**
 
@@ -23,7 +23,7 @@
 | 提示词 `prompt` | 独立页，接任意 OpenAI 兼容 API，一句描述直接出 Danbooru 标签，可复制 / 填入工坊 |
 | 图库 `gallery` | 服务器输出图，收藏、删除（本地隐藏）、批量下载 |
 | 素材库 `glossary`（v1.15 改名，id 未变） | 服装 / 场景 / 姿势 / 表情四货架，标签来自 Comfyui-Anima-Wardrobe（8048 条，离线） |
-| 设置 `connect` | 服务器地址、生成 API、服务器资源、语言 / 外观 / 更新 |
+| 设置 `connect` | 服务器地址、生成 API、服务器资源、语言（固定简体中文）/ 外观（v1.19 五套主题）/ 更新 |
 
 ---
 
@@ -34,7 +34,7 @@ cd D:\demo\Paint-v1
 npm install
 npm run dev                 # http://127.0.0.1:1420
 npx tsc -b                  # 类型检查（必须无输出）
-npx vitest run              # 12 文件 / 55 测试
+npx vitest run              # 17 文件 / 97 测试
 npx vite build              # 前端产物到 dist/
 ```
 
@@ -47,7 +47,7 @@ npx vite build              # 前端产物到 dist/
 ### 3.1 前端 `src/`（97 个文件）
 
 **入口**
-- `src/main.tsx` — 挂载 `AppLock > App`，CSS 引入顺序：`styles.css → experience.css → refinements.css → polish.css → mochi.css → mobile.css`。**顺序有意义**，后面的覆盖前面的。
+- `src/main.tsx` — 挂载 `AppLock > App`，CSS 引入顺序：`styles.css → experience.css → refinements.css → polish.css → mochi.css → mobile.css → theme.css`。**顺序有意义**，后面的覆盖前面的；`theme.css` 必须留在最后（v1.19）。
 - `src/App.tsx`（1589 行，最大的文件）— 全局状态 + 各页渲染 + 生成流程。
 
 **App.tsx 关键锚点**（改代码前先看这些行号，会随编辑漂移，按函数名 grep）
@@ -132,6 +132,8 @@ results / preview → #studio-render
 | `PromptSection.tsx`（约 80 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor`；「打开素材库」按钮 |
 | `PromptAssembly.tsx`（379 行，v1.18） | 工坊的「提示词装配」卡：四栏固定块 / 质量标签 + 替换规则表 + 三组预设 picker |
 | `nodeSkip.ts`（157 行，v1.18） | 节点旁路：`applySkips` 剥 `_skip` 节点并重连下游、`skipStatus` 判可跳过、`graphStats` 数节点与连线 |
+| `theme.ts` / `theme.css`（v1.19） | 五套主题：`pure` / `warm` / `mint` / `ink` / `night`。`theme.ts` 管 id 与 localStorage，`theme.css` 是变量 + 覆盖层（**必须最后一个 import**，见 `main.tsx`） |
+| `Appearance.tsx`（59 行，v1.19） | 设置页「外观」行 + 五色选择弹层（`.theme-options[role=radiogroup]`） |
 | `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
 | `Glossary.tsx`（约 290 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json`。v1.16 加 `onDescribe`：选中整套后可「发送到画面描述」 |
 | `ImageDetails.tsx`（约 180 行） | **v1.16 新增**：读图片的 `comfy_pocket` 元数据，列出正/负提示词与全部参数，两段各带复制。由 `Viewer.tsx` 的第五个动作按钮打开 |
@@ -213,6 +215,7 @@ restore / disconnect / connect_server / api / image / save_image
 | `prompt-history-v1` / `prompt-blocks-v1` | 编辑器历史 / 可复用块 | `promptLibrary.ts` |
 | `mochi-voice-draft-v1` | 助手草稿（**v1.15 起无写入方**） | 原 `PromptAssistant.tsx` |
 | `mochi-update-auto` / `mochi-update-check` | 自动检查更新开关 / 上次检查时间 | `AppUpdater.tsx` |
+| `mochi-theme` | **v1.19** 主题 id：`pure` / `warm` / `mint` / `ink` / `night`（默认 `pure`） | `theme.ts` 的 `THEME_KEY` |
 | `inference-presets-v1` | 预设 | `presetStore.ts` |
 | `model-favorites-v1` | 模型收藏（**读写方 `StudioModels.tsx` / `ModelPicker.tsx` 都已是死代码，实际不再写入**） | `StudioModels.tsx` / `ModelPicker.tsx` |
 | `autocomplete-enabled` / `biometric-auto-prompt` / `size-presets` | 杂项（`autocomplete-enabled` **v1.15 起无写方**） | 各处 |
@@ -298,7 +301,7 @@ $text.Contains("index-XXXXXXXX.js")   # 必须 True
 
 ### 6.1 bump 四个地方
 
-写一个 `_build/bump-<VER>.mjs`（照抄 `_build/bump-1.14.0.mjs`）：
+写一个 `_build/bump-<VER>.mjs`（照抄 `_build/bump-1.19.0.mjs`）：
 
 ```
 package.json                        "version": "X.Y.Z"
@@ -306,7 +309,7 @@ src-tauri/tauri.conf.json           "version": "X.Y.Z"
 src-tauri/Cargo.toml                version = "X.Y.Z"
 src-tauri/gen/android/app/tauri.properties
     tauri.android.versionName=X.Y.Z
-    tauri.android.versionCode=<10000 + minor*100 + patch>   # 1.1.3 → 10103；1.14.0 → 11400
+    tauri.android.versionCode=<10000 + minor*100 + patch>   # 1.1.3 → 10103；1.14.0 → 11400；1.19.0 → 11900
 ```
 
 versionCode 必须单调递增，否则 `AppUpdates.verify()` 会拒绝安装。注意 **1.14 走的是 minor=14**，所以 versionCode 是 `11400` 而不是 `10104`——规则里的 `minor` 是整段 minor 数字，不是它的个位数。
@@ -320,13 +323,13 @@ node _build\v114-audit-strings.mjs         # 只核对某批 key 是否两个 lo
 node _build\find-missing-strings.mjs       # 期望 missing 0
 ```
 
-`add-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。v1.14 起两个 locale 各 **950 键**。
+`add-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。v1.19 起两个 locale 各 **1042 键**。
 
 ### 6.3 测试 + 构建
 
 ```powershell
 npx tsc -b          # 无输出
-npx vitest run      # 12 files / 55 tests
+npx vitest run      # 17 files / 97 tests
 npx vite build      # 记下 dist/assets/index-XXXX.js 和 .css 的 hash
 ```
 
@@ -399,7 +402,12 @@ node _build\publish-1.17.0.cjs             # 真发
 **v1.18 新增并通过的**：`tests/v118.spec.ts`（3 用例）。覆盖：装配卡把固定块 + 质量标签 + 替换规则合成后写进 `{{prompt}}`（断言 POST 到 `/api/prompt` 的 body）、勾掉 ImageScale 后发送的图里没有节点 7 且节点 8 直连节点 6、固定块预设保存后能重新选中。
 - 写这个 spec 的两个坑：①`.assembly-toggle small` 的「命中 N 条」是拿 `settings.positive` 去跑规则的，**提示词没写之前永远是「命中 0 条」**，断言必须先填提示词；②要验证「发出去的东西」，就在 `page.route("**/__native")` 里把 `command === "api" && args.path === "/api/prompt"` 的 body 收集起来，别去解析 UI。
 
-**仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
+**v1.19 新增并通过的**：`tests/v119.spec.ts`（3 用例）。覆盖：图库每一格真正解码（`.gallery-card img` 的 `naturalWidth > 0`、`.image-placeholder` 计数 0）、结果面板只有两个按钮且 `aria-label` 恰为 `["收藏此结果","删除此结果"]`、语言是静态 `简体中文` 行且外观选择器 5 项、选 `night` 后 `localStorage["mochi-theme"] === "night"` 且 reload 后仍生效。
+- 两个坑：①`boot()` 里不能在每次 `addInitScript` 都 `localStorage.clear()`，否则 reload 用例读不到刚写的主题 → 用 `sessionStorage["v119-seeded"]` 只播种一次；②断言 `aria-label` 要写**中文**（页面 locale 是 zh-CN），不是法语源串。
+
+**跑法（重要）**：只跑维护中的五个 spec —— `npx playwright test tests/v114 tests/v115 tests/v116 tests/v118 tests/v119`（17 用例，约 25 s）。**跑全量 `npx playwright test` 会挂死**：里面混着四份已过期的 spec，实测 600 s 都跑不完。
+
+**仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了；**v1.19 起还多了两处失效**：`getByRole("button", {name: /Langue de l'application/})` 现在是静态行、`"Masquer ce résultat"` 按钮已删）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
 
 v1.14 顺手修好的：`tests/connections.spec.ts:218` 的启动用例，原来断言 `dialog[name="Démarrage"]` + `.startup-splash`，现改为断言开屏不存在、锁屏 dialog 直接出现。另 3 条 `connections.spec.ts` 用例仍因为依赖已删除的 profile API 而红。
 
@@ -647,8 +655,33 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - e2e `tests/v116.spec.ts` 新增第 3 例「the detailed prompt can be edited, copied and pushed to the studio」：断言初始无 `.detail-edit`、点编辑后 textarea 有值、`fill` 新词后「复制全部」读出剪贴板含新词与参数、点「还原」回到 `quiet library`、再改后「写回工坊」使弹层关闭且 `.prompt-entry.positive-entry` 含 `neon city`。**3 passed（18.5s）**。
   - 读剪贴板要先 `page.context().grantPermissions(["clipboard-read","clipboard-write"])`。
 
-
 ---
+
+## 9.10 v1.19 变更清单（本轮迭代：图库 / 实时预览 / 主题 / 结果简化）
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 图库取不到图片 | `src/thumbnails.ts` 的 `decode()` 加 `data:` 短路 | `imageUrl()` 返回的是 `data:` URL，旧实现 `await fetch(url)` 被 CSP `connect-src`（只有 `'self' ipc: http://ipc.localhost ws: wss:`，**没有 `data:`**）拦掉 → 每格 `.catch()` 显示占位。改为 `<img>` + `.decode()`，落在 `img-src`（含 `data:`）内 |
+| 2 | 工坊实时预览做不到 | `src-tauri/gen/android/app/build.gradle.kts` 的 `manifestPlaceholders["usesCleartextTraffic"]` 由 `"false"` 改 `"true"` | **这才是根因**：debug 分支原本就是 `true`，只有 release 是 `false`，于是 release APK 里明文 `ws://` 被 Android 系统直接掐掉；Rust 侧 reqwest 自带协议栈所以从没察觉。v1.16 往 CSP 里加 `ws: wss:` 一直没用，因为根本不是 CSP 的事 |
+| 3 | 结果只要收藏 + 删除 | `src/App.tsx` 的 `.result-actions` | 三个按钮（Masquer / Favori / Masquer）→ 两个（`收藏此结果` / `删除此结果`）。**都只写本地**：`dismissResult` 从 `results` 移除，`resultAction("trash")` 写 `removed:<server>` 集合，服务器 output 目录不动 |
+| 4 | 语言只留中文 + 外观多选项 | `src/LanguagePicker.tsx` 改静态行；新增 `src/theme.ts` / `src/theme.css` / `src/Appearance.tsx`；`Connections.tsx` 挂 `<Appearance>`；`App.tsx` 持有 `theme` state | 语言只是**收窄 UI**，`Locale` 类型仍保留 `fr`/`en`（`src/testLocale.ts` 钉在 `fr`，17 个测试文件依赖法语源串）。主题五套：`pure`（默认，与原纯白一致）/ `warm` / `mint` / `ink` / `night`（暗色） |
+| 5 | 自动检查更新是否有用 | 核查结论：**有用** | `src-tauri/pocket-plugin/android/.../AppUpdates.kt`（256 行）是真实现：拉 GitHub releases → 校验 asset 名 `huihua-${tag}-arm64.apk`、`sha256:` digest、size 1..250 MB → 下载 → `verify()` 比对长度 + sha256 + `getPackageArchiveInfo` 的包名/longVersionCode/versionName + 签名证书 → FileProvider（`${applicationId}.updates`）安装。`UpdateProvider` 与 `res/xml/update_paths.xml` 都在 |
+
+**night 主题白块攻坚**（本轮最耗时的一段，改主题前必读）：
+- 为什么难：全仓硬编码 `#ffffff`/`#fff` 共 **103 处**，其中两处带 `!important`（`src/mochi.css:1260-1264` 的 `.connection-form`、`.selected`/`.segmented button[aria-pressed="true"]` 用 `var(--lavender)`）；另外 `src/mochi.css:18-20` 自定义了 `--canvas` / `--field` / `--lavender` 三个 token，`theme.css` 一开始只改 `--surface*`，所以那批仍是白的。
+- 修法三条：①`:root` 里把 `--canvas`/`--field`/`--lavender` 重指到 `var(--bg)` / `var(--surface-soft)`；②单类覆盖常用白底；③对双类选择器（`.prompt-studio .studio-block`、`.studio-imports > .save-preset-shortcut`）用 `html[data-theme]` 前缀提高特异性压回去。全部堆在 `src/theme.css` 末尾，不动其他 CSS 文件。
+- 排查手法：Playwright 探针遍历 `body *`，取 `getComputedStyle().backgroundColor`，`lum = 0.299r+0.587g+0.114b > 200` 且可见且尺寸 ≥30×14 的列出来。修到只剩 `nav-icon`（已透明）与 `button.primary`（night 下 `--accent` 本就是浅色，设计意图）为止。
+- **`theme.css` 必须是 `main.tsx` 里最后 import 的样式表**，否则被 `mochi.css` 覆盖。
+
+**校验（v1.19）**：`npx tsc -b` 无输出；`npx vitest run` **17 文件 / 97 测试**全绿；`npx vite build` 通过（`index-qEtYj87a.js` 473.75 kB，`Glossary-*.js` 582.94 kB 有 >500 kB 警告，非阻塞）；`npx playwright test tests/v114 tests/v115 tests/v116 tests/v118 tests/v119` → **17 passed（24.9s）**。
+- 版本：1.19.0 / versionCode **11900**（`_build/bump-1.19.0.mjs`）；locale 1033 → **1042** 键（`_build/add-v119-strings.mjs`，+9：`简体中文` / 五个主题名 / `Supprimer` / `Supprimer du résultat` / `Rafraîchissement automatique`）。
+
+**已知取舍**：
+- 「删除」仍只是**本地隐藏**，服务器 output 目录不动（v1.14 起如此，没有 `/api/history` 的删除接口）。
+- 实时预览的修复**只在 release 构建层面**，尚未在真机上验证过一次完整的 socket 预览；另外 Rust 侧没有 WebSocket 实现（离线 cargo registry 里没有 `tokio-tungstenite`），所以仍然走 WebView 直连。
+- 主题只覆盖到当前存在的页面；以后新加的组件如果写死 `#fff`，night 下还会白，记得用 `var(--surface*)`。
+
+
 
 ## 10. 已知的坑（都踩过）
 
@@ -683,6 +716,9 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - ~~**启动闪屏 ~2.6s**，截图/断言前要等。~~ **v1.14 已删除开屏动画**（`StartupSplash` 连同 `AppLock` 的 `launching` 状态一起删掉），现在冷启动直接进锁屏或主界面，截图脚本里的 `waitForTimeout(4000)` 可以缩短。
 - `waitUntil: "networkidle"` 在这个应用里永不返回（队列轮询）。
 - React StrictMode 双挂载，`useEffect` 里的原生调用会跑两次。
+- **导航按钮点不动（截图脚本专用坑）**：`main#main.page-window` 会拦截 `aside nav button` 的指针事件，`click()` 与 `click({force: true})` 都会超时。必须用 DOM 直点：`await page.evaluate(i => { const b = document.querySelectorAll("aside nav button"); b[i < 0 ? b.length - 1 : i]?.click(); }, index)`。导航顺序：工坊 / 提示词 / 图库 / 素材库 / 设置。
+- **设置页分组要点开才渲染**：`<details class="settings-group">` 不展开时内部 `.switch-row` / `.setting-row` 都不在 DOM 里，先 `summary.click()` 再取。
+- **`theme.css` 必须最后 import**（`src/main.tsx` 末尾），否则被 `mochi.css` 里那些 `background: #fff` 覆盖；新组件别写死白色，用 `var(--surface)` / `var(--surface-soft)` / `var(--bg)`。
 
 ---
 
@@ -692,9 +728,10 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 ### P0 — 真正卡住体验的三条
 
-1. ~~**进度是假的，也没有实时预览**~~ ✅ **v1.16 已做**
+1. ~~**进度是假的，也没有实时预览**~~ ✅ **v1.16 已做；v1.19 修掉真机失效的根因**
    - 现在 `src/comfySocket.ts` 直连 `/ws?clientId=`，`progress` → 真实百分比、`executing` → 「节点 N」、二进制 `PREVIEW_EVENT=1` 帧 → 预览图（`socketPreview` ref 保证不被轮询快照覆盖）。CSP 已加 `ws: wss:`。
-   - 剩下要做的：真机上实测 ws 是否能连（Android WebView 明文 ws 到局域网 IP），以及重新构建 APK 才会带上新 CSP。Rust 侧 `tokio-tungstenite` 的 B 方案作为 A 失败时的备选，代码还没写。
+   - **v1.19 找到真凶**：`src-tauri/gen/android/app/build.gradle.kts` 的 `manifestPlaceholders["usesCleartextTraffic"]` 在 release 下是 `"false"`（debug 是 `"true"`），于是 release APK 里明文 `ws://` 被 Android 系统直接掐掉——改 CSP 当然没用。现已统一改为 `"true"`。
+   - 剩下要做的：真机上实测一次完整 socket 预览（1.19 只在构建层面修了，尚未跑通一次真机预览）。若仍不通，再考虑 Rust 侧 `tokio-tungstenite` 的 B 方案——注意离线 cargo registry 里没有这个 crate。
 
 2. **无鉴权、不能上传图片** ✅已核实
    - `src-tauri/src/lib.rs` 的 `struct ServerConfig { url: Option<String> }` —— 只有一个字段。

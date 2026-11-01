@@ -16,7 +16,11 @@ android {
     compileSdk = 36
     namespace = "app.huihua.paint"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        // v1.19: the app only ever talks to a ComfyUI server on the local
+        // network over plain http / ws. Release builds used to forbid cleartext,
+        // which silently killed the live-preview WebSocket inside the WebView.
+        // Rust-side requests never noticed because reqwest brings its own stack.
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "app.huihua.paint"
         minSdk = 29
         targetSdk = 36
