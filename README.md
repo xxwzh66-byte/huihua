@@ -28,7 +28,7 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
-| 1.21.0 | arm64-v8a | 待构建 | — |
+| 1.21.0 | arm64-v8a | 75.3 MB | [huihua-1.21.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.21.0/huihua-1.21.0-arm64.apk) |
 | 1.19.0 | arm64-v8a | 75.3 MB | [huihua-1.19.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.19.0/huihua-1.19.0-arm64.apk) |
 | 1.18.0 | arm64-v8a | 75.3 MB | [huihua-1.18.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.18.0/huihua-1.18.0-arm64.apk) |
 | 1.17.0 | arm64-v8a | 75.3 MB | [huihua-1.17.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.17.0/huihua-1.17.0-arm64.apk) |

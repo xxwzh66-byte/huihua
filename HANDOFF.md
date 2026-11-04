@@ -729,6 +729,25 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 1. **`[hidden]` 会被自己的 `display` 规则打败**。给折叠卡内容写 `.template-slot .card-content { display: grid }` 后，折叠再也不会生效——浏览器内置的 `[hidden] { display: none }` 特异性比不过类选择器。必须写成 `.card-content:not([hidden])`。
 2. **e2e 里点导航按钮要用 `page.evaluate`**。`main#main.page-window` 覆盖在 `aside nav` 上方，`click()` 和 `click({ force: true })` 都会等到超时；改成 `page.evaluate(() => document.querySelectorAll("aside nav button")[i]?.click())` 立刻生效。
 
+**构建产物与发布（1.21.0）**：
+
+- `dist-apk/huihua-1.21.0-arm64.apk`，**75 253 503 字节**，versionCode `12100` / versionName `1.21.0`，证书 SHA-256 `9fe3dac1…bf9f`（与 1.0.0 起所有版本同一张证书，可覆盖升级），APK SHA-256 `d28e382deb2746fd2a63ea9077fcd9e873ac9557bd6f386249e565cb7a469164`。
+- `dist/assets` 下 14 个文件全部嵌入 `libhuihua_lib.so`（解 apk → zip → `Expand-Archive` → node 用 latin1 读 so 比对文件名）。
+- 发布：`node _build/publish-1.21.0.cjs`（`--dry-run` 只做本地四项复核）。Release id `433880470`，tag `v1.21.0` → `89055b3`，`draft=false / prerelease=false`，asset 75 253 503 B digest 与本地一致。
+- **这台机器上 `build-apk.ps1` 会卡在 Gradle 那一步**，原因不是脚本：Java 在这台机器上**无法写入 `C:\Users\32978` 下任何目录**（`%TEMP%`、`.gradle`、家目录全被拒，`RandomAccessFile` 直接 `FileNotFoundException: 拒绝访问`）。绕法是换 `GRADLE_USER_HOME` 到可写盘，并绕开 wrapper 自带的锁文件：
+
+  ```powershell
+  $env:JAVA_HOME='D:\demo\toolchain\jdk17\jdk-17.0.20.1+1'
+  $env:ANDROID_HOME='D:\demo\android-sdk'; $env:ANDROID_SDK_ROOT='D:\demo\android-sdk'
+  $env:GRADLE_USER_HOME='D:\demo\_tmp\gradle'; $env:TEMP='D:\demo\_tmp'; $env:TMP='D:\demo\_tmp'
+  cd D:\demo\Paint-v1\src-tauri\gen\android
+  & 'C:\Users\32978\.gradle\wrapper\dists\gradle-8.14.3-bin\cv11ve7ro1n3o1j4so8xd9n66\gradle-8.14.3\bin\gradle.bat' --no-daemon -g D:\demo\_tmp\gradle assembleRelease
+  ```
+
+  即：**直接调 gradle 发行版的 `gradle.bat`，不要调 `gradlew.bat`**（wrapper 要在 `~/.gradle` 里建 `.lck`，必然被拒）。cargo 那步不受影响。签名的三步照旧手跑：
+  `apksigner sign --ks _build\huihua-release.jks --ks-key-alias huihua --ks-pass pass:huihua2026 --key-pass pass:huihua2026 --out dist-apk\huihua-<VER>-arm64.apk <unsigned.apk>`。
+  另外 `vim` 提示 `Unable to initialize metrics, ensure C:\Users\32978\.android is writable` 是同一个权限问题的无害副产物，可以忽略。
+
 
 
 ## 10. 已知的坑（都踩过）
