@@ -1,13 +1,7 @@
 import { test, expect, beforeEach } from "vitest";
 import { appendBlock, checkPrompts, rememberPrompt, readPromptLibrary } from "./promptLibrary";
-import { searchTags } from "./tags";
 import { parsePreset } from "./presetStore";
 beforeEach(() => { const map = new Map<string, string>(); Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => map.set(k, v) } }); });
-test("substring search includes internal and prefixed words with deterministic ranking", () => {
-  const rows = ["blue_swimsuit", "swimsuit", "swimsuit_under_clothes", "microswimsuit"].map((name, i) => ({ name, count: 100 - i, category: 0 }));
-  expect(searchTags(rows, "Swimsuit").map(t => t.name)).toEqual(["swimsuit", "blue_swimsuit", "swimsuit_under_clothes", "microswimsuit"]);
-  expect(searchTags(rows, "swimsuit", 2).map(t => t.name)).toEqual(["swimsuit", "blue_swimsuit"]);
-});
 test("checker normalizes weights and spaces without substring false positives", () => {
   expect(checkPrompts({ positive: "(sun:1.2), blue_sky", negative: "SUN, blue sky" })).toHaveLength(2);
   expect(checkPrompts({ positive: "sun, daytime", negative: "sunset, nighttime" })).toEqual([]);

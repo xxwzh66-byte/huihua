@@ -1,4 +1,4 @@
-# 绘画 1.17.0
+# 绘画 1.21.0
 
 绘画（huihua）是一个 ComfyUI 的 Android 客户端：在手机上写提示词、调参数、看实时进度，把出图的算力留给你的 ComfyUI 服务器。
 
@@ -7,19 +7,20 @@
 ## 特性
 
 - **直连 ComfyUI**：输入 `http://` 或 `https://` 的 ComfyUI 地址即可，走 ComfyUI 原生 `/api/*` 接口。
-- **实时进度**：轮询队列与历史，显示每一步的进度、预览图和耗时。
-- **提示词助手**：Danbooru 标签联想、权重编辑、中英互译、本地词库搜索。
+- **实时进度**：WebSocket 直连 ComfyUI，显示真实百分比、当前执行节点与实时预览图。
+- **提示词翻译**：可调你已配置的生成 API 翻译提示词（电脑上也能用），标签与权重原样保留；也能用 Android 本机 ML Kit 离线翻译。工坊的正 / 负向提示词、提示词页的画面描述与生成结果、图库详情里的提示词都能直接翻。
+- **提示词模板**：一个模板 = 一份命名过的 API 指令，可新建 / 重命名 / 复制 / 删除，可导出成 JSON 换设备带走。
 - **提示词独立成页**：底部导航自带「提示词」按钮。在「设置 → 生成 API」里填入任意 OpenAI 兼容接口（OpenAI / DeepSeek / Ollama / SiliconFlow 或自建），写一句描述就能直接出标签，结果一键复制，或一键填入工坊的正 / 负向提示词。
 - **注入模板可查看可改**：每次请求真正发给 API 的 system 指令可以展开查看、就地修改、保存到本机，编辑区实时预览 `system:` 与 `user:` 两段实际内容。
 - **skill 模板**：把带 `SKILL.md` + `data/*.csv` 的 skill 文件夹拖进设置页，CSV 的第一列自动变成可选参数，模板会被注入到生成提示词的系统提示里。
-- **可视化工作流**：导入 ComfyUI 的 API 格式 JSON，用一张从上到下的紧凑流水线卡片看节点，参数字段直接改；保存到本机的工作流库随时再载入。
+- **可视化工作流**：导入 ComfyUI 的 API 格式 JSON，用图标节点 + 连线看整张图，点节点才展开参数；不想要的节点可以勾掉，生成时下游会自动接到它的上游。
 - **占位符联动**：模型 / 提示词 / 尺寸 / 采样器 / 种子等参数可以换成 `{{prompt}}`、`{{sampler}}` 这样的占位符，生成时自动用工坊设置里的值替换。被绑定的字段在可视化视图里可以直接编辑，改完立刻回写到工坊。
 - **服务器资源**：连上服务器后直接读出可用的模型、文本编码器、VAE 与 LoRA，并标出当前工作流正在用的那一个。
 - **素材库**：离线 Danbooru 标签分类（服装 / 场景 / 姿势 / 表情，8048 条），中文显示、中英日三路搜索；选好一整套可以拼成一句画面描述，也可以一键换成英文标签直接生成。
 - **作品集**：从服务器历史读取输出图，支持收藏、批量下载到本机、放大查看、复用参数。
 - **应用内更新**：启动时自动检查 GitHub Release，弹窗展示新版本号与更新内容，一键下载安装；可在设置里关闭自动检查。
-- **三种语言**：简体中文（默认）、English、Français。
-- **纯白外观**：默认浅色纯白主题，圆角与留白，移动端优先。
+- **五套外观**：默认纯白，另有暖纸 / 薄荷 / 淡墨 / 夜间四套，随时切换；界面固定简体中文。
+- **素材库页**：底部导航第四项，服装 / 场景 / 姿势 / 表情四个货架，离线可用。
 
 ## 下载
 
@@ -27,19 +28,46 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
-| 1.1.3 | arm64-v8a | 73.6 MB | [huihua-1.1.3-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.3/huihua-1.1.3-arm64.apk) |
-| 1.1.2 | arm64-v8a | 73.6 MB | [huihua-1.1.2-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.2/huihua-1.1.2-arm64.apk) |
-| 1.1.1 | arm64-v8a | 73.6 MB | [huihua-1.1.1-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.1/huihua-1.1.1-arm64.apk) |
-| 1.1.0 | arm64-v8a | 73.6 MB | [huihua-1.1.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.1.0/huihua-1.1.0-arm64.apk) |
-| 1.0.0 | arm64-v8a | 71.0 MB | [huihua-1.0.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.0.0/huihua-1.0.0-arm64.apk) |
+| 1.21.0 | arm64-v8a | 待构建 | — |
+| 1.19.0 | arm64-v8a | 75.3 MB | [huihua-1.19.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.19.0/huihua-1.19.0-arm64.apk) |
+| 1.18.0 | arm64-v8a | 75.3 MB | [huihua-1.18.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.18.0/huihua-1.18.0-arm64.apk) |
+| 1.17.0 | arm64-v8a | 75.3 MB | [huihua-1.17.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.17.0/huihua-1.17.0-arm64.apk) |
+| 1.16.0 | arm64-v8a | 75.2 MB | [huihua-1.16.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.16.0/huihua-1.16.0-arm64.apk) |
 
 ```bash
-adb install huihua-1.1.3-arm64.apk
+adb install huihua-1.21.0-arm64.apk
 ```
 
-安装包使用本地自签名证书（`CN=HuiHua Local Build`），首次安装需在系统里允许「安装未知来源应用」。1.0.0 / 1.1.0 / 1.1.1 / 1.1.2 / 1.1.3 使用同一签名证书，可以直接覆盖升级。
+安装包使用本地自签名证书（`CN=HuiHua Local Build`，SHA-256 `9fe3dac1…bf9f`），首次安装需在系统里允许「安装未知来源应用」。自 1.0.0 起所有版本都用同一张证书签名，可以直接覆盖升级，不必先卸载。
 
 ## 更新内容
+
+### 1.21.0
+
+- 提示词翻译可以走 API 了：复用「设置 → 生成 API」里已经配好的任意 OpenAI 兼容接口，电脑上也能用；标签、`<lora:…>`、`(tag:1.2)` 权重、括号和逗号原样保留，只翻自然语言。
+- 翻译入口对准提示词：工坊的正 / 负向提示词、提示词页的画面描述与生成结果、图库详情里的提示词都能一键翻；引擎可选「自动（先本机再 API）/ 本机 / API」。
+- 提示词页开始折叠：模板区与「最近生成」默认收起，标题右侧显示当前模板名 / 可用数量 / 生成条数。
+- 提示词模板可以管理了：新建、重命名、复制、删除，还能把全部模板导出成 JSON，换设备时导入回来。
+
+### 1.20.0
+
+- 清掉 95 个不该留在仓库里的东西：死源码、1.9 MB 的旧 Danbooru 索引、1.1 MB 的闲置品牌图、一次性脚本，以及 9 份从 v1.0 起就再也没跑通的端到端用例。
+- 端到端测试从此全绿：`npx playwright test` 一句话跑完 17 个用例，不用再挑着跑。
+
+### 1.19.0
+
+- 图库能正常显示缩略图了（之前每格都是「图片不可用」）。
+- 修复 release 包里的实时预览：明文 `ws://` 被系统的 cleartext 策略掐掉，现在能连上 ComfyUI 的推送。
+- 新增四套外观（暖纸 / 薄荷 / 淡墨 / 夜间），默认仍是纯白；界面语言固定简体中文。
+- 生成结果面板只留收藏与删除两个按钮。
+
+### 1.18.0
+
+- 工坊新增「提示词装配」卡：前置固定 / 后置固定 / 质量标签（正负）四栏，外面再叠一层「替换规则」，生成时按固定顺序拼进 `{{prompt}}`。
+- 替换规则支持六种动作（替换 / 前置前 / 前置后 / 后置前 / 后置后 / 最后置），触发词可用 `/正则/`，一行一条，命中条数实时显示。
+- 固定块、规则表、整套配置都能存成命名预设，随时换回来。
+- 画布上可以勾掉不用的节点，生成时下游自动接到它的上游；工具条显示连线数与已跳过数量。
+- 图库点开大图后可以查看完整提示词，直接编辑、复制全部，或一键写回工坊。
 
 ### 1.17.0
 
@@ -104,7 +132,7 @@ npm install
 npm run build      # tsc -b && vite build
 ```
 
-Android（Tauri 2）：本机工具链不在系统 PATH，走 `_build/` 下四个脚本（cargo → copy_so → gradle → apksigner），完整步骤见 [HANDOFF.md](HANDOFF.md) 第 5 节。
+Android（Tauri 2）：本机工具链不在系统 PATH，先 `npx vite build`，再跑一条 `_build/build-apk.ps1`（内部串起 cargo → copy_so → gradle → apksigner，并自检证书指纹与 versionCode），完整步骤见 [HANDOFF.md](HANDOFF.md) 第 5 节。
 
 Rust 侧需要 `aarch64-linux-android` 目标与 Android NDK，且 **Cargo 的 `custom-protocol` feature 必须开启**（否则前端资源不嵌进 `.so`，装上去是白屏）。Android SDK 通过 `src-tauri/gen/android/local.properties` 的 `sdk.dir` 指定。
 
@@ -117,12 +145,11 @@ Rust 侧需要 `aarch64-linux-android` 目标与 Android NDK，且 **Cargo 的 `
 ```
 src/                  React 19 + TypeScript 界面
   locales/            界面词典（fr 键 → en / zh-CN）
-  data/               离线标签索引与术语表
+  data/               素材库数据（服装 / 场景 / 姿势 / 表情）
 src-tauri/            Rust 后端（HTTP 传输、LLM 调用、生物识别锁、保存图片）
   src/llm.rs          OpenAI 兼容接口客户端
   gen/android/        Android 工程
 assets/               品牌与欢迎页素材
-scripts/              构建与素材脚本
 tests/                Playwright 端到端用例
 ```
 

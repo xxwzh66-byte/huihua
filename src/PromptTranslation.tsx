@@ -3,6 +3,11 @@ import { useRef, useState, useEffect } from "react";
 import { Languages, ArrowLeftRight, LoaderCircle } from "lucide-react";
 import { Modal } from "./Modal";
 import { native } from "./api";
+import {
+  engineLabel,
+  translateWithApi,
+  type TranslateEngine,
+} from "./translate";
 
 const languages = {
   fr: "Français",
@@ -33,21 +38,33 @@ export function insertTranslation(
     (after && !/^[\s,.)]/.test(after) ? " " : "");
   return { text: before + inserted + after, caret: start + inserted.length };
 }
+
+/**
+ * v1.21: two engines behind one dialog. The device engine (ML Kit) is offline
+ * and free but Android-only; the API engine reuses the chat API already
+ * configured for prompt generation and works everywhere, and it is told to
+ * leave tags and weights untouched. "Automatique" tries the device first and
+ * falls back to the API, which is also what makes desktop builds translate.
+ */
 export default function PromptTranslation({
   initial,
+  initialTarget,
   onInsert,
   onClose,
 }: {
   initial: string;
+  initialTarget?: string;
   onInsert: (text: string) => void;
   onClose: () => void;
 }) {
   const [text, setText] = useState(initial),
-    [source, setSource] = useState("fr"),
-    [target, setTarget] = useState("en");
+    [source, setSource] = useState("zh"),
+    [target, setTarget] = useState(initialTarget ?? "en");
+  const [engine, setEngine] = useState<TranslateEngine>("auto");
   const [result, setResult] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
+    [used, setUsed] = useState(""),
     [cellular, setCellular] = useState(false);
   const revision = useRef(0),
     locked = useRef(false);
@@ -57,6 +74,17 @@ export default function PromptTranslation({
     },
     [],
   );
+
+  async function deviceTranslate() {
+    const answer = await native<{ text: string }>("translate_text", {
+      text,
+      source,
+      target,
+      cellular,
+    });
+    return String(answer?.text ?? "");
+  }
+
   async function translate() {
     if (locked.current) return;
     locked.current = true;
@@ -64,17 +92,27 @@ export default function PromptTranslation({
     setBusy(true);
     setError("");
     setResult("");
+    setUsed("");
     try {
-      const translated =
-        source === target
-          ? { text }
-          : await native<{ text: string }>("translate_text", {
-              text,
-              source,
-              target,
-              cellular,
-            });
-      if (request === revision.current) setResult(translated.text);
+      let translated = text;
+      if (source !== target) {
+        if (engine === "device") {
+          translated = await deviceTranslate();
+          if (request === revision.current) setUsed("device");
+        } else if (engine === "api") {
+          translated = await translateWithApi(text, source, target);
+          if (request === revision.current) setUsed("api");
+        } else {
+          try {
+            translated = await deviceTranslate();
+            if (request === revision.current) setUsed("device");
+          } catch {
+            translated = await translateWithApi(text, source, target);
+            if (request === revision.current) setUsed("api");
+          }
+        }
+      }
+      if (request === revision.current) setResult(translated);
     } catch (e) {
       if (request === revision.current) setError(String(e));
     } finally {
@@ -82,6 +120,7 @@ export default function PromptTranslation({
       if (request === revision.current) setBusy(false);
     }
   }
+
   return (
     <Modal
       title={tr("Traduire des mots")}
@@ -135,6 +174,24 @@ export default function PromptTranslation({
           </select>
         </label>
       </div>
+      <label className="translation-engine">
+        {tr("Moteur")}
+        <select
+          disabled={busy}
+          value={engine}
+          onChange={(e) => {
+            setEngine(e.target.value as TranslateEngine);
+            setResult("");
+            setUsed("");
+          }}
+        >
+          {(["auto", "device", "api"] as TranslateEngine[]).map((id) => (
+            <option key={id} value={id}>
+              {engineLabel(id)}
+            </option>
+          ))}
+        </select>
+      </label>
       <label>
         {tr("Texte à traduire")}
         <textarea
@@ -149,19 +206,29 @@ export default function PromptTranslation({
         />
       </label>
       <p className="hint">
-        {tr(
-          "ML Kit traduit sur votre appareil. Le premier usage télécharge les modèles de langue par Wi-Fi.",
-        )}
+        {engine === "api"
+          ? tr(
+              "L’API traduit le texte et laisse les tags, poids et <lora:…> intacts. Elle utilise l’API de génération configurée dans les réglages.",
+            )
+          : engine === "device"
+            ? tr(
+                "ML Kit traduit sur votre appareil. Le premier usage télécharge les modèles de langue par Wi-Fi.",
+              )
+            : tr(
+                "L’appareil d’abord, l’API en secours. Sur ordinateur l’appareil n’existe pas : l’API prend le relais.",
+              )}
       </p>
-      <label className="translation-cellular">
-        <input
-          type="checkbox"
-          checked={cellular}
-          disabled={busy}
-          onChange={(e) => setCellular(e.target.checked)}
-        />
-        {tr("Autoriser le téléchargement sur données mobiles")}
-      </label>
+      {engine !== "api" && (
+        <label className="translation-cellular">
+          <input
+            type="checkbox"
+            checked={cellular}
+            disabled={busy}
+            onChange={(e) => setCellular(e.target.checked)}
+          />
+          {tr("Autoriser le téléchargement sur données mobiles")}
+        </label>
+      )}
       {busy && (
         <p role="status">{tr("Préparation des langues et traduction…")}</p>
       )}
@@ -169,6 +236,11 @@ export default function PromptTranslation({
       {result && (
         <label>
           {tr("Traduction")}
+          {used && (
+            <small className="translation-engine-used">
+              {tr("via {0}", [engineLabel(used === "api" ? "api" : "device")])}
+            </small>
+          )}
           <textarea
             aria-label={tr("Traduction")}
             value={result}

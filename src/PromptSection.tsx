@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { History, Sparkles } from "lucide-react";
+import { History, Languages, Sparkles } from "lucide-react";
 import { t as tr } from "./i18n";
 import type { Settings } from "./workflow";
 import PromptEditor from "./PromptEditor";
+import PromptTranslation from "./PromptTranslation";
 import "./prompt-section.css";
 
 /**
@@ -23,6 +24,11 @@ export default function PromptSection({
 }) {
   const [editor, setEditor] = useState<"positive" | "negative" | null>(null);
   const [tool, setTool] = useState<"history" | "blocks" | undefined>();
+  // v1.21: translating the whole prompt was only reachable inside the editor,
+  // after remembering a selection. This shortcut translates the active side.
+  const [translating, setTranslating] = useState<"positive" | "negative" | null>(
+    null,
+  );
   const openEditor = (
     side: "positive" | "negative",
     nextTool?: "history" | "blocks",
@@ -30,6 +36,11 @@ export default function PromptSection({
     setTool(nextTool);
     setEditor(side);
   };
+  const translatableSide = s.positive.trim()
+    ? "positive"
+    : s.negative.trim()
+      ? "negative"
+      : null;
 
   return (
     <>
@@ -64,6 +75,14 @@ export default function PromptSection({
             {tr("+ Bloc réutilisable")}{" "}
           </button>
           <button onClick={onGlossary}>{tr("Ouvrir la garde-robe")}</button>
+          {translatableSide && (
+            <button
+              aria-label={tr("Traduire le prompt")}
+              onClick={() => setTranslating(translatableSide)}
+            >
+              <Languages size={13} /> {tr("Traduire")}
+            </button>
+          )}
           <button onClick={onGenerate}>
             <Sparkles size={13} /> {tr("用 API 生成提示词")}
           </button>
@@ -84,6 +103,17 @@ export default function PromptSection({
           values={{ positive: s.positive, negative: s.negative }}
           onChange={(v) => onChange({ ...s, ...v })}
           onClose={() => setEditor(null)}
+        />
+      )}
+      {translating && (
+        <PromptTranslation
+          initial={s[translating]}
+          initialTarget="en"
+          onClose={() => setTranslating(null)}
+          onInsert={(text) => {
+            onChange({ ...s, [translating]: text });
+            setTranslating(null);
+          }}
         />
       )}
     </>

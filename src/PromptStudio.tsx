@@ -4,6 +4,8 @@ import {
   Copy,
   Eraser,
   FileCode2,
+  Languages,
+  Layers,
   LoaderCircle,
   Settings2,
   Sparkles,
@@ -20,6 +22,9 @@ import {
   type PromptTemplate,
 } from "./promptTemplates";
 import InstructionEditor from "./InstructionEditor";
+import TemplateManager from "./TemplateManager";
+import PromptTranslation from "./PromptTranslation";
+import CollapsibleCard from "./CollapsibleCard";
 import "./prompt-studio.css";
 
 const HISTORY = "prompt-studio-history-v1";
@@ -85,6 +90,10 @@ export default function PromptStudio({
   const [history, setHistory] = useState<Entry[]>(readHistory);
   const [showInstruction, setShowInstruction] = useState(false);
   const [instructionVersion, setInstructionVersion] = useState(0);
+  const [manager, setManager] = useState(false);
+  const [translating, setTranslating] = useState<"input" | "output" | null>(
+    null,
+  );
   const request = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -265,80 +274,99 @@ export default function PromptStudio({
             {t("先在设置里填写生成 API 的地址与模型，这个页面才会工作。")}
           </p>
         )}
-        {templates.length > 0 && (
-          <label className="studio-field">
-            <span>{t("提示词模板")}</span>
-            <select
-              value={templateId}
-              onChange={(e) => {
-                setTemplateId(e.target.value);
-                setFields({});
-                setShowInstruction(false);
-              }}
-            >
-              <option value="">{t("不使用模板")}</option>
-              {templates.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <button
-          type="button"
-          className="studio-instruction-toggle"
-          aria-expanded={showInstruction}
-          onClick={() => setShowInstruction((v) => !v)}
+        <CollapsibleCard
+          title={t("提示词模板")}
+          eyebrow={
+            template
+              ? template.name
+              : templates.length
+                ? t("{0} 个可用", [String(templates.length)])
+                : t("未使用")
+          }
+          className="template-slot"
         >
-          <FileCode2 size={15} />
-          {showInstruction ? t("收起注入模板") : t("查看 / 修改注入模板")}
-        </button>
-        {showInstruction && (
-          <InstructionEditor
-            key={`${templateId}:${instructionVersion}`}
-            template={template}
-            fields={fields}
-            previewUser={trimmed ? userMessage : undefined}
-            onMessage={setNotice}
-            onError={setError}
-            onSaved={(next) => {
-              if (next) setTemplates(next);
-              setInstructionVersion((v) => v + 1);
-            }}
-          />
-        )}
-        {template && template.params.length > 0 && (
-          <div className="studio-params">
-            {template.params.map((param) => (
-              <label className="studio-field" key={param.key}>
-                <span>{param.label}</span>
-                {param.kind === "select" ? (
-                  <select
-                    value={fields[param.key] ?? ""}
-                    onChange={(e) =>
-                      setFields((f) => ({ ...f, [param.key]: e.target.value }))
-                    }
-                  >
-                    <option value="">—</option>
-                    {(param.options ?? []).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={fields[param.key] ?? ""}
-                    onChange={(e) =>
-                      setFields((f) => ({ ...f, [param.key]: e.target.value }))
-                    }
-                  />
-                )}
-              </label>
-            ))}
+          <div className="studio-template-bar">
+            <label className="studio-field">
+              <span>{t("提示词模板")}</span>
+              <select
+                value={templateId}
+                onChange={(e) => {
+                  setTemplateId(e.target.value);
+                  setFields({});
+                  setShowInstruction(false);
+                }}
+              >
+                <option value="">{t("不使用模板")}</option>
+                {templates.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="studio-link"
+              onClick={() => setManager(true)}
+            >
+              <Layers size={14} /> {t("管理")}
+            </button>
           </div>
-        )}
+          <button
+            type="button"
+            className="studio-instruction-toggle"
+            aria-expanded={showInstruction}
+            onClick={() => setShowInstruction((v) => !v)}
+          >
+            <FileCode2 size={15} />
+            {showInstruction ? t("收起注入模板") : t("查看 / 修改注入模板")}
+          </button>
+          {showInstruction && (
+            <InstructionEditor
+              key={`${templateId}:${instructionVersion}`}
+              template={template}
+              fields={fields}
+              previewUser={trimmed ? userMessage : undefined}
+              onMessage={setNotice}
+              onError={setError}
+              onSaved={(next) => {
+                if (next) setTemplates(next);
+                setInstructionVersion((v) => v + 1);
+              }}
+            />
+          )}
+          {template && template.params.length > 0 && (
+            <div className="studio-params">
+              {template.params.map((param) => (
+                <label className="studio-field" key={param.key}>
+                  <span>{param.label}</span>
+                  {param.kind === "select" ? (
+                    <select
+                      value={fields[param.key] ?? ""}
+                      onChange={(e) =>
+                        setFields((f) => ({ ...f, [param.key]: e.target.value }))
+                      }
+                    >
+                      <option value="">—</option>
+                      {(param.options ?? []).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={fields[param.key] ?? ""}
+                      onChange={(e) =>
+                        setFields((f) => ({ ...f, [param.key]: e.target.value }))
+                      }
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+        </CollapsibleCard>
         <label className="studio-field">
           <span>{t("画面描述")}</span>
           <textarea
@@ -356,11 +384,21 @@ export default function PromptStudio({
           <span>
             {input.length} / {MAX_INPUT}
           </span>
-          {input && (
-            <button className="studio-link" onClick={() => setInput("")}>
-              <Eraser size={14} /> {t("清空")}
-            </button>
-          )}
+          <div className="studio-meta-tools">
+            {input.trim() && (
+              <button
+                className="studio-link"
+                onClick={() => setTranslating("input")}
+              >
+                <Languages size={14} /> {t("翻译成英文")}
+              </button>
+            )}
+            {input && (
+              <button className="studio-link" onClick={() => setInput("")}>
+                <Eraser size={14} /> {t("清空")}
+              </button>
+            )}
+          </div>
         </div>
         <div className="studio-actions">
           {busy ? (
@@ -410,6 +448,12 @@ export default function PromptStudio({
             </h2>
             <button
               className="studio-link"
+              onClick={() => setTranslating("output")}
+            >
+              <Languages size={14} /> {t("翻译")}
+            </button>
+            <button
+              className="studio-link"
               onClick={() => void copy(output, "output")}
             >
               {copied === "output" ? <Check size={14} /> : <Copy size={14} />}
@@ -428,9 +472,12 @@ export default function PromptStudio({
         </section>
       )}
       {history.length > 0 && (
-        <section className="studio-block">
+        <CollapsibleCard
+          title={t("最近生成")}
+          eyebrow={t("{0} 条", [String(history.length)])}
+          className="history-slot"
+        >
           <div className="studio-block-head">
-            <h2>{t("最近生成")}</h2>
             <button
               className="studio-link"
               onClick={() => {
@@ -483,7 +530,43 @@ export default function PromptStudio({
               </li>
             ))}
           </ul>
-        </section>
+        </CollapsibleCard>
+      )}
+      {manager && (
+        <TemplateManager
+          selected={templateId}
+          onSelect={(id) => {
+            setTemplateId(id);
+            setFields({});
+            setShowInstruction(false);
+            setTemplates(readTemplates());
+            setInstructionVersion((v) => v + 1);
+          }}
+          onClose={() => {
+            setManager(false);
+            setTemplates(readTemplates());
+          }}
+          onMessage={setNotice}
+          onError={setError}
+        />
+      )}
+      {translating && (
+        <PromptTranslation
+          initial={translating === "input" ? input : output}
+          initialTarget={translating === "input" ? "en" : "zh"}
+          onClose={() => setTranslating(null)}
+          onInsert={(text) => {
+            if (translating === "input") {
+              setInput(text.slice(0, MAX_INPUT));
+              setNotice(t("译文已替换画面描述。"));
+            } else {
+              setOutput(text);
+              setCopied("");
+              setNotice(t("译文已替换生成的提示词。"));
+            }
+            setTranslating(null);
+          }}
+        />
       )}
     </div>
   );

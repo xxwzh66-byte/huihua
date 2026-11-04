@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.19.0**（versionCode `11900`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.21.0**（versionCode `12100`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -34,7 +34,7 @@ cd D:\demo\Paint-v1
 npm install
 npm run dev                 # http://127.0.0.1:1420
 npx tsc -b                  # 类型检查（必须无输出）
-npx vitest run              # 17 文件 / 97 测试
+npx vitest run              # 19 文件 / 101 测试
 npx vite build              # 前端产物到 dist/
 ```
 
@@ -140,10 +140,13 @@ results / preview → #studio-render
 | `imageBytes.ts` | `dataUrlBytes(url)`：base64 data URL → `Uint8Array` |
 | `thumbnails.ts` | **v1.16 新增**：`createImageBitmap` + `OffscreenCanvas` 把网格图缩到长边 256（webp q=0.72），独立 8 MB 缓存 |
 | `comfySocket.ts`（约 210 行） | **v1.16 新增**：直连 ComfyUI `/ws?clientId=`，解析实时进度、执行节点与二进制预览帧，断线指数退避重连 |
-| `PromptStudio.tsx`（459 行） | 独立「提示词」页 |
+| `PromptStudio.tsx`（约 575 行） | 独立「提示词」页。v1.21 起模板区与「最近生成」都是折叠卡，画面描述与生成结果各带「翻译」入口 |
 | `InstructionEditor.tsx`（174 行） | 「注入模板可查看可修改」实体 |
-| `promptTemplates.ts`（271 行） | 模板 CRUD + skill 文件夹导入 + `defaultSystem()` |
-| `llm.ts` / `llmAdapter.ts` / `promptOptimizer.ts` | OpenAI 兼容调用 / 适配器 / 提案校验 |
+| `promptTemplates.ts`（约 400 行） | 模板 CRUD + skill 文件夹导入 + `defaultSystem()`。v1.21 追加 `templateName` / `newTemplate` / `duplicateTemplate` / `renameTemplate` / `exportTemplates` / `importTemplates` |
+| `TemplateManager.tsx`（新，v1.21）+ `template-manager.css` | 模板管理弹层：新建 / 重命名 / 复制 / 删除 / 导出 JSON / 导入 JSON |
+| `translate.ts`（新，v1.21） | API 翻译：`cleanAnswer` 去围栏与引号、`translationSystem` 明确「保留标签与权重只翻散文」、`translateWithApi` 复用 `llmChat` |
+| `PromptTranslation.tsx`（约 273 行，v1.21 重写） | 翻译弹层，三档引擎 `auto`/`device`/`api`；`device` 是 Android 的 ML Kit，`api` 走 `translate.ts`，`auto` 先本机再 API |
+| `llm.ts` / `promptOptimizer.ts` | OpenAI 兼容调用 / 提案校验 |
 | `serverInventory.ts`（108 行） | 从 `object_info` 里抽模型 / 文本编码器 / VAE / LoRA |
 | `LlmSettings.tsx`（316 行） | 生成 API 设置块 |
 | `ServerResources.tsx`（126 行） | 服务器资源面板 |
@@ -209,7 +212,7 @@ restore / disconnect / connect_server / api / image / save_image
 | `workflow-library-v1` | 工作流库（≤60） | `workflowLibrary.ts` |
 | `prompt-assembly` / `prompt-rules` | 提示词装配的四栏内容 / 规则表原文（v1.18） | `App.tsx` 两个 effect 直写 |
 | `prompt-fix-presets-v1` / `prompt-rule-presets-v1` / `prompt-profiles-v1` | 固定块预设 / 规则预设 / 整套配置（各 ≤80） | `promptPresets.ts` |
-| `prompt-templates-v1` | skill 模板（≤100） | `promptTemplates.ts` |
+| `prompt-templates-v1` | skill 模板（≤100，v1.21 起由 `TemplateManager.tsx` 增删改 + JSON 导入导出） | `promptTemplates.ts` |
 | `prompt-default-system-v1` | 全局默认 system 指令 | `promptTemplates.ts` |
 | `prompt-studio-history-v1` | 提示词页历史（≤30） | `PromptStudio.tsx` |
 | `prompt-history-v1` / `prompt-blocks-v1` | 编辑器历史 / 可复用块 | `promptLibrary.ts` |
@@ -217,7 +220,7 @@ restore / disconnect / connect_server / api / image / save_image
 | `mochi-update-auto` / `mochi-update-check` | 自动检查更新开关 / 上次检查时间 | `AppUpdater.tsx` |
 | `mochi-theme` | **v1.19** 主题 id：`pure` / `warm` / `mint` / `ink` / `night`（默认 `pure`） | `theme.ts` 的 `THEME_KEY` |
 | `inference-presets-v1` | 预设 | `presetStore.ts` |
-| `model-favorites-v1` | 模型收藏（**读写方 `StudioModels.tsx` / `ModelPicker.tsx` 都已是死代码，实际不再写入**） | `StudioModels.tsx` / `ModelPicker.tsx` |
+| `model-favorites-v1` | 模型收藏（**v1.20 起 `StudioModels.tsx` / `ModelPicker.tsx` 已删，这一项彻底无人读写**） | — |
 | `autocomplete-enabled` / `biometric-auto-prompt` / `size-presets` | 杂项（`autocomplete-enabled` **v1.15 起无写方**） | 各处 |
 
 ---
@@ -232,32 +235,29 @@ D:\demo\toolchain\
 D:\demo\android-sdk\  (build-tools 34/35/36, platform-tools, platforms)
 ```
 
-### 四步
+### 一条命令
 
 ```powershell
 cd D:\demo\Paint-v1
+npx vite build
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\_build\build-apk.ps1 `
+  -Toolchain D:\demo\toolchain -Sdk D:\demo\android-sdk -Version <VER>
+```
 
-# 1. Rust → arm64 .so（先按第 6.1 节 bump 版本号，否则 .so 里嵌的版本号是旧的）
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File _build\cargo_android.ps1
-#    期望：Compiling huihua v1.1.x / cargo exit=0
+`build-apk.ps1` 一条龙跑完：前端产物检查 → `cargo build`（arm64 `.so`）→ `.so` 拷进 jniLibs 并 strip → `gradlew assembleRelease` → `apksigner` 签名 → 三件套校验（证书指纹 / versionCode / versionName）。任一道不符就 `Remove-Item $apk` 并 `exit 1`，脏包出不了 `dist-apk/`。
 
-# 2. .so 拷进 jniLibs 并 strip
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File _build\copy_so.ps1
-#    期望：libhuihua_lib.so ≈ 10,08x,xxx 字节
+期望输出：
 
-# 3. Gradle assembleRelease
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File _build\gradle_assemble.ps1
-#    期望：BUILD SUCCESSFUL，app-release-unsigned.apk ≈ 77,11x,xxx 字节
-
-# 4. 签名
-D:\demo\android-sdk\build-tools\35.0.0\apksigner.bat sign `
-  --ks _build\huihua-release.jks --ks-key-alias huihua `
-  --ks-pass pass:huihua2026 --key-pass pass:huihua2026 `
-  --out dist-apk\huihua-<VER>-arm64.apk `
-  src-tauri\gen\android\app\build\outputs\apk\release\app-release-unsigned.apk
+```
+Signer #1 certificate SHA-256 digest: 9fe3dac1…bf9f
+package: name='app.huihua.paint' versionCode='<10000 + minor*100 + patch>' versionName='<VER>'
+APK  D:\demo\Paint-v1\dist-apk\huihua-<VER>-arm64.apk
+大小 <bytes> 字节
+SHA256 <64 hex>
 ```
 
 > **必须用 `powershell.exe -File` 启动脚本**，不能直接 `pwsh .\script.ps1`（裸 `pwsh` 不在 PATH，且这些脚本依赖 Windows PowerShell 的环境变量继承行为）。
+> 脚本末尾偶尔以 exit code 1 收尾，那只是最后一行提示走了 stderr；只要上面五行都打印出来、产物在 `dist-apk/` 里就是成功。
 
 ### 签名身份（不要换！）
 
@@ -289,11 +289,11 @@ $text = [System.IO.File]::ReadAllText($so, [System.Text.Encoding]::GetEncoding(2
 $text.Contains("index-XXXXXXXX.js")   # 必须 True
 ```
 
-`index-XXXX.js` / `index-XXXX.css` 的 hash 来自 `dist/assets/` 的实际文件名。**第一次构建出的 .so 常常含着上一次的 hash**（增量编译没重跑前端嵌入），对不上就重跑第 1、2、3 步。
+`index-XXXX.js` / `index-XXXX.css` 的 hash 来自 `dist/assets/` 的实际文件名。**第一次构建出的 .so 常常含着上一次的 hash**（增量编译没重跑前端嵌入），对不上就重跑 `build-apk.ps1`。
 
-### 不要用的脚本
+### 不要用的东西
 
-`scripts/build-android.ps1` 是 v0.x 遗留：引用了 `libcomfy_pocket_lib.so`、`Mochi-*.apk`、alias `comfypocket`，跑不通。UI 上保留它只是为了不删历史文件，实际构建走 `_build/` 那四个脚本。
+`scripts/` 目录已在 v1.20 整份删除：里面 `build-android.ps1` 是 v0.x 遗留（引用 `libcomfy_pocket_lib.so`、`Mochi-*.apk`、alias `comfypocket`，跑不通），另外三个（`compile-glossary.py` / `compile-tags.py` / `whiten-css.mjs`）分别服务已删除的 `glossary.json`、`booru.tsv.gz` 和 v1.0 的纯白调色。需要构建就走 `_build/build-apk.ps1`。
 
 ---
 
@@ -317,13 +317,11 @@ versionCode 必须单调递增，否则 `AppUpdates.verify()` 会拒绝安装。
 ### 6.2 补 i18n 键
 
 ```powershell
-node _build\find-missing-strings.mjs      # 扫 src/*.ts(x) 的 t()/tr() 字面量，列出缺的键
-# 用 add-strings.mjs / add-v113-strings.mjs / add-v114-strings.mjs 的写法（表格 [source, zh, en]）补齐
-node _build\v114-audit-strings.mjs         # 只核对某批 key 是否两个 locale 都有
-node _build\find-missing-strings.mjs       # 期望 missing 0
+node _build\find-orphans.mjs               # 扫源码里的孤儿导出（删文件后也可用它复查）
+# 用 add-v119-strings.mjs 的写法（表格 [source, zh, en]）补齐
 ```
 
-`add-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。v1.19 起两个 locale 各 **1042 键**。
+`add-*-strings.mjs` 会 JSON 解析 → 加键 → 按 key 排序 → 2 空格缩进重写，两个 locale 同时改。中文源串的 zh 填 `""` 时回退成 source 本身。v1.21 起两个 locale 各 **1081 键**。每版一个 `add-vXXX-strings.mjs`，用完就删（v1.20 清掉了 v1.13–v1.18 那七个，只留 `add-v119-strings.mjs` 作范例）。
 
 ### 6.3 测试 + 构建
 
@@ -335,7 +333,7 @@ npx vite build      # 记下 dist/assets/index-XXXX.js 和 .css 的 hash
 
 ### 6.4 出 APK（第 5 节），然后发布
 
-写 `_build/publish-<VER>.cjs`（照抄 `publish-1.1.3.cjs`）：
+写 `_build/publish-<VER>.cjs`（照抄 `publish-1.19.0.cjs`）：
 
 1. `execSync('git credential fill', {input:"protocol=https\nhost=github.com\n\n"})` 拿 40 字符 PAT。
 2. `GET /repos/xxwzh66-byte/huihua/releases/tags/v<VER>`；404 就 `POST /releases`（`tag_name` / `name: 绘画 v<VER>` / `body` / `draft:false`），否则 `PATCH`。
@@ -355,15 +353,21 @@ node _build\updater-sim.cjs      # 复刻 AppUpdates.check()，对 live GitHub A
 
 期望：installed = 当前版本 → no update；installed = 任意旧版本 → 检出最新版 + url/sha256/page/notes 全对。
 
-再跑 Playwright `_build/updatecheck.mjs` 看弹窗文案，`_build/togglecheck.mjs` 验设置里能关掉自动检查。
+（`_build/updatecheck.mjs` / `_build/togglecheck.mjs` 这两个 Playwright 脚本从来不在仓库里，弹窗文案靠 `tests/v119.spec.ts` 之外的手动截图确认。）
 
 ### 6.6 提交推送
 
 ```powershell
 git add -A
 git commit -m "feat(vX.Y.Z): ..."
-node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 常被阻断）
+git push origin main               # github.com:443 常被阻断，见下
 ```
+
+push 失败的典型输出是 `fatal: unable to access ...: Failed to connect to github.com port 443 after 21072 ms` 或 `Recv failure: Connection was reset`。此时 `https://api.github.com` 通常还是通的（所以发布能走 API）。对策：
+
+- `git config http.version HTTP/1.1` + `git config http.postBuffer 524288000`（已设），能解决大部分情况。
+- 还不行就挂后台循环重试：`for ($i=1; $i -le 20; $i++) { git push origin main; if ($LASTEXITCODE -eq 0) { "pushed at try $i"; break }; Start-Sleep 30 }`，实测通常前三次内成功。
+- 验证远端是否真收到：`GET https://api.github.com/repos/xxwzh66-byte/huihua/commits/main`（注意 API 可能滞后几秒，`git branch -vv` 显示前进后再查一次）。
 
 **github.com:443 打不通时**（2026-10-31 实测就是这种环境，只有 api.github.com 通）：放弃 `git push`，改用 Git Data API 发版——脚本已经把「本地改动 → blob → tree → commit → fast-forward main → tag + Release」全做完：
 
@@ -371,8 +375,8 @@ node _build\push-retry.cjs        # 循环重试版 git push（github.com:443 �
 $env:GITHUB_TOKEN = "ghp_xxx"     # repo scope 的 PAT，本机没存过
 node _build\probe-upstream.cjs    # 只读：看上游 main 在哪、tag 是否已存在
 node _build\diff-vs-upstream.cjs  # 只读：确认没有会覆盖上游改动的冲突项
-node _build\publish-1.17.0.cjs --dry-run   # 打印将要提交的 23 个文件
-node _build\publish-1.17.0.cjs             # 真发
+node _build\publish-<VER>.cjs --dry-run   # 本地复核 apk 的 sha256 / 证书 / versionCode，不碰远端
+node _build\publish-<VER>.cjs             # 真发
 ```
 
 顺带把 `README.md` 的标题、下载表、`adb install` 行、`### X.Y.Z` 更新内容节一起更新。
@@ -385,11 +389,11 @@ node _build\publish-1.17.0.cjs             # 真发
 
 `vitest.config.ts`：`include: ["src/**/*.test.ts"]`，`setupFiles: ["src/testLocale.ts"]`（把 locale 钉在 `fr`，所以断言里是法语串）。
 
-现有 17 个测试文件 / **97 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）/ `wardrobeNames`（v1.17）/ `promptRules`（v1.18）/ `nodeSkip`（v1.18）。
+现有 19 个测试文件 / **101 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）/ `wardrobeNames`（v1.17）/ `promptRules`（v1.18）/ `nodeSkip`（v1.18）/ `translate`（v1.21）/ `promptTemplates`（v1.21）。
 
-**没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptTemplates`、`promptPresets`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
+**没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptPresets`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
 
-### 7.2 E2E（Playwright）——部分过期
+### 7.2 E2E（Playwright）
 
 `playwright.config.ts`：`testDir: "tests"`，端口 `PAINT_TEST_PORT || 14420`，`webServer: npm run dev`（`reuseExistingServer: false`，**跑之前先杀掉占用 14420 的进程**），viewport 390×844。
 
@@ -405,13 +409,18 @@ node _build\publish-1.17.0.cjs             # 真发
 **v1.19 新增并通过的**：`tests/v119.spec.ts`（3 用例）。覆盖：图库每一格真正解码（`.gallery-card img` 的 `naturalWidth > 0`、`.image-placeholder` 计数 0）、结果面板只有两个按钮且 `aria-label` 恰为 `["收藏此结果","删除此结果"]`、语言是静态 `简体中文` 行且外观选择器 5 项、选 `night` 后 `localStorage["mochi-theme"] === "night"` 且 reload 后仍生效。
 - 两个坑：①`boot()` 里不能在每次 `addInitScript` 都 `localStorage.clear()`，否则 reload 用例读不到刚写的主题 → 用 `sessionStorage["v119-seeded"]` 只播种一次；②断言 `aria-label` 要写**中文**（页面 locale 是 zh-CN），不是法语源串。
 
-**跑法（重要）**：只跑维护中的五个 spec —— `npx playwright test tests/v114 tests/v115 tests/v116 tests/v118 tests/v119`（17 用例，约 25 s）。**跑全量 `npx playwright test` 会挂死**：里面混着四份已过期的 spec，实测 600 s 都跑不完。
+**跑法**：`npx playwright test`（全量）。v1.20 删掉四份过期 spec 后，`tests/` 里只剩维护中的 6 个 spec + `v114-harness.tsx`，全量跑完 **20 passed / 约 25 s**，不再挂死。跑之前必须先杀 14420 端口（`playwright.config.ts` 里 `reuseExistingServer: false`）：
 
-**仍然过期的**：`tests/app.spec.ts`（25 处 `activate_profile` / `list_profiles` / `/bridge/*`，这些在 v1.0 就删了；**v1.19 起还多了两处失效**：`getByRole("button", {name: /Langue de l'application/})` 现在是静态行、`"Masquer ce résultat"` 按钮已删）、`tests/studio-settings.spec.ts`（断言「Reprendre la configuration」按钮，v1.14 已删除）、`tests/catalog.spec.ts`（import `../src/ModelImports`，该文件不存在）、`tests/onboarding.spec.ts`（**v1.15 起整页 Onboarding 已删，这个 spec 可以整份删掉**）。
+```powershell
+Get-NetTCPConnection -LocalPort 14420 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+npx playwright test
+```
 
-v1.14 顺手修好的：`tests/connections.spec.ts:218` 的启动用例，原来断言 `dialog[name="Démarrage"]` + `.startup-splash`，现改为断言开屏不存在、锁屏 dialog 直接出现。另 3 条 `connections.spec.ts` 用例仍因为依赖已删除的 profile API 而红。
+**已删除的过期 spec（v1.20）**：`app.spec.ts`、`studio-settings.spec.ts`、`catalog.spec.ts` + `catalog-harness.tsx`、`onboarding.spec.ts`、`optimizer.spec.ts` + `optimizer-harness.tsx`、`prompt-library.spec.ts` + `prompt-harness.tsx`、`v14.spec.ts` + `v14-harness.tsx`、`connections.spec.ts`、`android-assistant.mjs`。它们依赖的都是 v1.0–v1.17 期间就删掉的东西（`activate_profile` / `list_profiles` / `/bridge/*` / `Reprendre la configuration` / 整页 Onboarding / `src/ModelImports`），修的成本远高于重写，所以整份移除。要参考写法就看现存的六个 spec。
 
-现在真正在用的验证方式是 `_build/` 下一堆手写 Playwright 脚本（`v114-shot.mjs` / `v114-debug.mjs` / `v113check.mjs` / `instructioncheck.mjs` …）。它们的共同套路见第 8 节。
+**v1.21 新增并通过的**：`tests/v121.spec.ts`（3 用例）。覆盖：工坊「翻译提示词」快捷按钮 → 弹层里把引擎切到 API → mock 的 `llm_chat` 返回带 ```` ``` ```` 围栏的译文 → 断言围栏被 `cleanAnswer` 去掉且 `.translation-engine-used` 显示「经由 API」→ 插入后正向提示词被替换；模板管理弹层的新建 / 重命名 / 复制（`副本` 排在最前，因为列表是新的在前）/ 导出（下载文件名 `huihua-templates.json`）/ 删除；模板卡与「最近生成」卡默认折叠、点 heading 展开、eyebrow 显示 `1 条`。
+
+肉眼确认 UI 的老办法（`_build/v121-shot.mjs`）见第 8 节。
 
 ---
 
@@ -456,6 +465,9 @@ await page.waitForTimeout(2500);                            // v1.14 起没有�
 几个固定的坑：
 
 - 工作流卡是 `CollapsibleCard`，**未展开时内部元素 rect 是 0×0**。先点 `.collapsible-card h2 button`。
+- **点侧边导航要用 `page.evaluate`**（v1.21 起）：`main#main.page-window` 覆盖在 `aside nav` 上方，`click()` 与 `click({ force: true })` 都会超时。改成 `page.evaluate(() => document.querySelectorAll("aside nav button")[i]?.click())`，顺序是 工坊 / 提示词 / 图库 / 素材库 / 设置。
+- **折叠卡的内容区不能写裸 `display`**（v1.21 踩过）：`.card-content { display: grid }` 会压过浏览器内置的 `[hidden] { display: none }`，折叠就失效。一律写 `.card-content:not([hidden])`。
+- 设置页的分组是 `<details class="settings-group">`，**不展开时内部 DOM 根本不存在**，先点 `summary`。
 - 文件选择器有多个，skll 文件夹那个是最后一个（`webkitdirectory`）。工作流要用 `input[accept*="json"]`。
 - 点开 `PromptEditor` 的 dialog 会拦截后续点击，测完 `page.keyboard.press("Escape")`。
 - `.node-bound textarea.bound-editor` 才是可编辑文本框；`.node-bound input` 首个可能是别的字段。
@@ -510,9 +522,9 @@ await page.waitForTimeout(2500);                            // v1.14 起没有�
 
 配套修了候选列表的解析：COMBO 在 `/api/object_info` 里有两种外形——新版本 `["COMBO", { options: [...] }]`，老版本 `[[...值], {...}]`。原来两处各自写着「`definition[0] === "COMBO"` 才读 options，否则把 `definition[0]` 当数组」，老式裸数组能过、另一种就成了空列表，而**空列表会让所有校验静默跳过**（`if (!allowed.length) continue`）。现在统一走 `src/api.ts` 的 `optionList(definition)`，`choices()` / `invalidChoices()` / `workflowGraph.ts` 的 `optionsOf()` 都用它。
 
-v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186 815 字节，versionCode `11400`，证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.3 同指纹，可直接覆盖升级）。发行说明草稿在 `_build/release-1.14.0.md`。
+v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186 815 字节，versionCode `11400`，证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.3 同指纹，可直接覆盖升级）。发行说明草稿在 `_build/release-1.14.0.md`（v1.20 起只保留当前版本的 `release-1.19.0.md`，历史草稿已删）。
 
-**构建顺序有一个坑**：`cargo build`（不是 `tauri build`）不会跑 `beforeBuildCommand`，但 `build.rs` 仍会在**编译时**把 `../dist` 烘进 `.so`。所以必须 `npx vite build` → 再 `cargo_android.ps1`。顺序反了会打进旧前端（UI 看起来没变，或直接白屏）。跑 `node _build\v114-verify-apk.mjs` 可以自检：它读当前 `dist/assets` 的 `index-*.js|css` 哈希文件名，检查是否出现在 `libhuihua_lib.so` 里，不匹配就 `STALE` 退出。
+**构建顺序有一个坑**：`cargo build`（不是 `tauri build`）不会跑 `beforeBuildCommand`，但 `build.rs` 仍会在**编译时**把 `../dist` 烘进 `.so`。所以必须 `npx vite build` → 再构建 `.so`（如今的 `build-apk.ps1` 已把这一步排好）。顺序反了会打进旧前端（UI 看起来没变，或直接白屏）。跑 `node _build\v119-verify-apk.mjs` 可以自检：它读当前 `dist/assets` 的全部哈希文件名，检查是否出现在 `libhuihua_lib.so` 里，缺一个就 exit 1。
 
 ---
 
@@ -525,7 +537,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 | 3 | 修生图后卡死 | `useGenerationSession.ts` | 见下 |
 | 4 | 术语表 → 素材库 | `Glossary.tsx` 全量重写 + `src/data/wardrobe.json`（164 KB，新）+ 删 `src/data/glossary.json`；`App.tsx` 标题/副标题/导航 label；`PromptSection.tsx` 按钮；`experience.test.ts` 第 4 个用例 | 四货架：服装 17 组 558 套 5434 标签、场景 7 组 45 套 190、姿势 24 组 500 套 2219、表情 5 组 32 套 205。数据由 `D:\demo\_anima_build.mjs` 从 Comfyui-Anima-Wardrobe 的 `anima_presets.json` 生成（MIT，lingdongbudong） |
 | 5 | 提示词编辑器瘦身 | `PromptEditor.tsx` / `PromptTools.tsx` / `PromptSection.tsx`；删 `usePromptSuggestions.ts`、`tags.worker.ts`、`caret.ts`、`PromptAssistant.tsx` | 去掉语音助手入口与弹层、自动补全开关、Danbooru 联想气泡、`Vérifier`（检查）页与 `.prompt-conflict` 行。剩下：文本/区块分段、翻译、历史、可复用区块、权重、撤销重做 |
-| 6 | 版本 + i18n | `_build/bump-1.15.0.mjs` / `_build/add-v115-strings.mjs` | 1.15.0 / versionCode `11500`；locale 950 → **967** 键 |
+| 6 | 版本 + i18n | `_build/bump-1.15.0.mjs` / `_build/add-v115-strings.mjs`（v1.20 已删） | 1.15.0 / versionCode `11500`；locale 950 → **967** 键 |
 
 **「生图后卡死」的根因**（`src/useGenerationSession.ts`）：
 
@@ -538,7 +550,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 **回归用例**：`tests/v115.spec.ts`（4 个，全绿）覆盖「新装首启无引导」「素材库四货架 + 选中写进提示词」「编辑器无语音/无补全/无气泡/两按钮」「导入不改字段」。
 
-**构建产物**：`dist-apk/huihua-1.15.0-arm64.apk`（75 204 351 字节，versionCode `11500`，SHA-256 `9b86385a6838c3f30a5fdde3c4bca9754ad58517cd7d0a76167f99aa4102554b`，签名证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.2 / 1.1.3 / 1.14.0 同指纹可覆盖升级）。发行说明在 `_build/release-1.15.0.md`。
+**构建产物**：`dist-apk/huihua-1.15.0-arm64.apk`（75 204 351 字节，versionCode `11500`，SHA-256 `9b86385a6838c3f30a5fdde3c4bca9754ad58517cd7d0a76167f99aa4102554b`，签名证书 SHA-256 `9fe3dac1…bf9f`，与 1.1.2 / 1.1.3 / 1.14.0 同指纹可覆盖升级）。发行说明在 `_build/release-1.15.0.md`（v1.20 已删）。
 
 **v1.15 顺手做的 CSS 清理**（6 个文件，40 余行死规则）：`.suggestion-bubble` / `.suggestion-dock` / `.suggestion-heading` / `.tag-option` / `.tag-suggestions` / `.tag-dot` / `.category-*` / `.autocomplete-setting` / `.editor-hint` / `.voice-entry` / `.prompt-conflict` / `.prompt-issues` / `.prompt-check-description`。另外 `src/experience.css` 的 `.editor-paper textarea { padding-bottom: 175px }` 改回 `23px`（那 175px 原本是给联想气泡让位）。清理脚本：`_build/clean-v115-css*.mjs`（5 个，按行/按块两套手法）。
 
@@ -552,7 +564,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 | 2 | 实时进度（WebSocket） | 新增 `src/comfySocket.ts`；`useGenerationSession.ts` 加独立 effect；`tauri.conf.json` CSP `connect-src` 加 `ws: wss:`；新增 `src/comfySocket.test.ts` | 之前进度是假的（`setProgress` 只在 0/100 两处调用），预览靠轮询 `/api/history` 里的 temp 图。现在直连 `/ws?clientId=`，解析 `progress`/`progress_state`/`executing`/`execution_start`/`execution_error`，二进制帧取 `PREVIEW_EVENT=1` 的预览（8 字节头 + PNG/JPEG/WEBP）。socket 有真帧时轮询不许覆盖（`socketPreview` ref）。重连退避 1s→15s |
 | 3 | 素材库发送到画面描述 | `Glossary.tsx` 加 `onDescribe` + `chosen` state + `describe()`；`App.tsx` `describeDraft`；`PromptStudio.tsx` `draft` prop | 选中整套后多一个「发送到画面描述」按钮，把条目的中文 label 用「，」拼成一句话，跳到提示词页填进「画面描述」框。`id: Date.now()` 保证同样内容连发两次也能触发 |
 | 4 | 看图可查详细提示词 | 新增 `src/ImageDetails.tsx`、`src/imageBytes.ts`；`Viewer.tsx` 加第五个动作按钮 | 按钮在每个图的查看器里，读 PNG 的 `comfy_pocket` tEXt chunk，列出正/负提示词 + 模型/尺寸/步数/CFG/采样器/调度器/种子/LoRA/VAE/来源，两段提示词各带一键复制。**注意 Viewer 的 return 改成 fragment**：`<dialog>` 不能可靠地嵌套 `showModal()`，弹层必须挂在 Viewer 的 Modal 旁边而不是里面 |
-| 5 | 版本 + i18n | `_build/bump-1.16.0.mjs` / `_build/add-v116-strings.mjs` | 1.16.0 / versionCode `11600`；locale 968 → **983** 键 |
+| 5 | 版本 + i18n | `_build/bump-1.16.0.mjs` / `_build/add-v116-strings.mjs`（v1.20 已删） | 1.16.0 / versionCode `11600`；locale 968 → **983** 键 |
 
 **顺手修的 i18n/样式**：`.glossary-selection .describe-send`（选中条第三个按钮）；`.image-details` 整套（弹层 `min(560px, 100%-24px)`、`.detail-text` `max-height:32vh`、`.detail-rows` 用 1px gap 做分隔线）。
 
@@ -560,7 +572,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 **还没在真机验证的**：CSP 加了 `ws:` 只在重新构建 APK 后生效，真 ComfyUI 上的 ws 进度与预览也还没实测。
 
-**构建与发布**：`dist-apk/huihua-1.16.0-arm64.apk`（75 204 351 字节，versionCode `11600`，SHA-256 `1717561e846eadb2173d5d96ee22b1cc7e693164212273291be39ef9ad0478d9`，签名证书与前几版同指纹）。构建顺序仍是 `npx vite build` → `_build/cargo_android.ps1` → `copy_so.ps1` → `gradle_assemble.ps1` → `apksigner`；嵌入校验：`dist/assets` 下 15 个文件全部出现在 `libhuihua_lib.so` 里。
+**构建与发布**：`dist-apk/huihua-1.16.0-arm64.apk`（75 204 351 字节，versionCode `11600`，SHA-256 `1717561e846eadb2173d5d96ee22b1cc7e693164212273291be39ef9ad0478d9`，签名证书与前几版同指纹）。构建顺序仍是 `npx vite build` → cargo → copy_so → gradle → apksigner 四步（v1.20 起这四步收进 `_build/build-apk.ps1` 一条命令）；嵌入校验：`dist/assets` 下 15 个文件全部出现在 `libhuihua_lib.so` 里。
 提交 `1843a8c`（feat(v1.16)…）+ `9e7ef75`（chore(release)），tag `v1.16.0` 指向 `1843a8c`，Release id `428033193`。
 
 ---
@@ -573,19 +585,19 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 | 2 | 中英日三路搜索 | `src/wardrobeNames.ts` 的 `searchText()`；`Glossary.tsx` 的 `matches()` | 同时匹配中文名、英文原名、罗马音别名（`sailor dress` / `sailor` / `seifuku` 都能命中） |
 | 3 | 整套双路发送 | `Glossary.tsx` 的 `describe()`；`PromptStudio.tsx` 的 `insertDraft()` + 新按钮；`App.tsx` `describeDraft` 类型改成 `{ text, prompt }` | 「发送到画面描述」给中文句子（`text`）+ 英文标签草稿（`prompt`）；「按英文标签填入正向提示词」直接把英文标签写进正向提示词。两条路互不覆盖 |
 | 4 | 分类/分组中文化 | `Glossary.tsx` 面包屑与 `.theme-choices` 分组条 | 都走 `groupLabel()`/中文映射，缺中文名回退英文原名 |
-| 5 | 版本 + i18n | `_build/bump-1.17.0.mjs`、`_build/check-i18n-1.17.0.cjs` | 1.17.0 / versionCode `11700`；locale 983 → **986** 键（中英法三语对齐，`t()` 引用 0 缺失） |
+| 5 | 版本 + i18n | `_build/bump-1.17.0.mjs`、`_build/check-i18n-1.17.0.cjs`（v1.20 已删） | 1.17.0 / versionCode `11700`；locale 983 → **986** 键（中英法三语对齐，`t()` 引用 0 缺失） |
 
-**校验**：`node node_modules/typescript/bin/tsc -b` 无输出；`vitest run` 15 文件 / **75 测试**全绿（新增 `src/wardrobeNames.test.ts` 20 条）；`vite build` 通过；`_build/check-i18n-1.17.0.cjs` 输出 en 986 / zh 986 / 缺失 0。
+**校验**：`node node_modules/typescript/bin/tsc -b` 无输出；`vitest run` 15 文件 / **75 测试**全绿（新增 `src/wardrobeNames.test.ts` 20 条）；`vite build` 通过；校验脚本（v1.20 已删）当年输出 en 986 / zh 986 / 缺失 0。
 
 **网络环境实测（2026-10-31，这台机器）**：
 - `github.com:443` **连不上**（`curl` 21s 超时，`git push` 走不通），`git` 还会先报 `schannel: CRYPT_E_REVOCATION_OFFLINE (0x80092013)`——想绕过就用 `git config --global http.schannelCheckRevoke false` 或 `curl --ssl-no-revoke`。
 - `api.github.com`、`codeload.github.com`、`objects.githubusercontent.com`、`ssh.github.com:443` **都通**。
-- 所以发版**不要走 `git push`**，走 `_build/publish-1.17.0.cjs`：它用 Git Data API 直接建 blob → tree → commit → fast-forward `main` → 建 tag + Release。这条路只需要 api.github.com。
+- 当年（1.17.0）绕过的办法是用一个走 Git Data API 的发布脚本直接建 blob → tree → commit → fast-forward `main` → 建 tag + Release，只需要 api.github.com。v1.18 起网络恢复，改回 `git push` + `publish-<VER>.cjs`（只上传 asset），`publish-1.17.0.cjs` 已在 v1.20 删除。
 - 写权限 token 靠**设备码登录**拿（本机没有 `gh`，`github.com/login/device/code` 偶尔抖动，脚本里带 8 次重试）：`node _build/gh-login-and-publish.cjs` 打印 `user_code`，浏览器打开 <https://github.com/login/device> 输入授权 GitHub CLI，token 落到 `_build/.ghtoken`（已 gitignore，40 字符，`gho_` 前缀），随后自动发版。要换账号就删掉这个文件重跑。
 
 **1.17.0 发布结果**：上游 `main` 从 `a6dbaff` 一路前进（`389144c` 首发 → 补正文 → 补发版脚本 → tag 平移），Release id **`429714462`**，tag `v1.17.0`，`draft=false / prerelease=true`（原因见下），无 APK 资产。页面：<https://github.com/xxwzh66-byte/huihua/releases/tag/v1.17.0>。
 **确切的当前 sha 不要看这里**（每改一次文档再发一次就变），跑 `node _build/verify-release.cjs` 看实时值：它打印 tag / main 指向、`package.json` 版本、`src/wardrobeNames.ts` 是否在位；`node _build/show-release-body.cjs` 抓回 Release 正文。
-- `publish-1.17.0.cjs` 已幂等：树和上游一致就跳过提交，且会把已存在的 tag `force` 平移到最新提交（Release PATCH 不会移动 tag）。连跑两次第二次只打印「与上游一致 → 跳过提交」，已实测。
+- 当年那个发布脚本已幂等：树和上游一致就跳过提交，且会把已存在的 tag `force` 平移到最新提交（Release PATCH 不会移动 tag）。连跑两次第二次只打印「与上游一致 → 跳过提交」，已实测。
 - 为什么是 `prerelease` 而不是 `draft`：`AppUpdates.kt:89` 同时跳过 `draft` 和 `prerelease`，两者都不会被应用内更新推给用户；但 `draft` 在 Releases 页不显示，`prerelease` 显示。第一次发成 `draft`（id `429713828`）已删除。
 - **本地 sha 与上游不同**：上游那两个提交是 Git Data API 直接造的，本地工作副本还是 `331516f` / `52ec453` / `f87f746`，树内容一致但 sha 不同。`github.com` 不通没法 `git fetch` 对齐，下一轮用 `_build/diff-vs-upstream.cjs` 按 blob sha 比对即可，不用担心「本地落后」。
 - `_build/probe-upstream.cjs` 只读探测上游状态；`_build/diff-vs-upstream.cjs` 对比本地 HEAD 与上游 main 的 blob sha，确认没有「上游已改过、本地要覆盖」的冲突（1.17.0 结果：`changed=23 identical-to-upstream=0 upstream-moved=0`）。
@@ -625,7 +637,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 | 3 | 三套命名集合 | 新增 `src/promptPresets.ts`；`PromptAssembly.tsx` 的三个 picker | `prompt-fix-presets-v1`（固定块）、`prompt-rule-presets-v1`（规则表）、`prompt-profiles-v1`（整套 config，含 settings + workflowName）。各 LIMIT 80 |
 | 4 | 节点跳过 / 旁路 | 新增 `src/nodeSkip.ts`；`WorkflowCanvas.tsx` 加 `.node-skip` 开关与 `.graph-node.skipped` 虚线；`App.tsx` 的 `generate()` 在 `resolveGraph` 之后调 `applySkips` | 节点上写 `_skip: true`，发送前剥掉并把消费者重连真实上游（`resolveSource` 按输出类型打分，`guard > 64` 防环）。等价于 st-chatu8 的 `processSkippedNodes`，但这里是纯函数 |
 | 5 | 画布工具条计数 | `WorkflowCanvas.tsx` 的 `.canvas-count` | 由「N 个节点 · N 个占位符」扩为「N 个节点 · N 个占位符 · N 条连线 · N 个已跳过」（后两项仅在非零时出现），`graphStats()` 提供 |
-| 6 | 版本 + i18n | `_build/bump-1.18.0.mjs`、`_build/add-v118-strings.mjs` | 1.18.0 / versionCode **`11800`**；locale 986 → **1026** 键（新增 40 条） |
+| 6 | 版本 + i18n | `_build/bump-1.18.0.mjs`、`_build/add-v118-strings.mjs`（v1.20 已删） | 1.18.0 / versionCode **`11800`**；locale 986 → **1026** 键（新增 40 条） |
 
 **装配顺序**（`assemble`）：`前置前 → before → 前置后 → modifiedPrompt → 后置前 → after → 后置后 → quality → 最后置`，空槽折叠后 `dedupeTags`。
 **负面装配**（`assembleNegative`）：`qualityNegative` 提到最前，其余同序。
@@ -651,7 +663,7 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - 「复制全部」拼 `Prompt positif:` + `Prompt négatif:` + 十行参数为纯文本，一次复制整份。
 - 「写回工坊」走 `Viewer` 的新 prop `onApplyPrompt` → `App.tsx` 里 `setSettings(s => ({...s, positive, negative}))` + `setImported(null)` + `setViewer(null)` + `setTab("create")` + Toast「提示词已写回工坊。」。
 - **编辑只改这里的副本，不回写图片文件**（弹层底部有 `.detail-hint` 明确写这句）。要让 `Viewer` 的 `return` 继续保持 fragment，`<dialog>` 不能嵌套 `showModal()`。
-- i18n `_build/add-v118b-strings.mjs`：+7 条，locale 1026 → **1033** 键。
+- i18n `_build/add-v118b-strings.mjs`（v1.20 已删）：+7 条，locale 1026 → **1033** 键。
 - e2e `tests/v116.spec.ts` 新增第 3 例「the detailed prompt can be edited, copied and pushed to the studio」：断言初始无 `.detail-edit`、点编辑后 textarea 有值、`fill` 新词后「复制全部」读出剪贴板含新词与参数、点「还原」回到 `quiet library`、再改后「写回工坊」使弹层关闭且 `.prompt-entry.positive-entry` 含 `neon city`。**3 passed（18.5s）**。
   - 读剪贴板要先 `page.context().grantPermissions(["clipboard-read","clipboard-write"])`。
 
@@ -682,6 +694,40 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - 「删除」仍只是**本地隐藏**，服务器 output 目录不动（v1.14 起如此，没有 `/api/history` 的删除接口）。
 - 实时预览的修复**只在 release 构建层面**，尚未在真机上验证过一次完整的 socket 预览；另外 Rust 侧没有 WebSocket 实现（离线 cargo registry 里没有 `tokio-tungstenite`），所以仍然走 WebView 直连。
 - 主题只覆盖到当前存在的页面；以后新加的组件如果写死 `#fff`，night 下还会白，记得用 `var(--surface*)`。
+
+
+
+## 9.11 v1.20 变更清单（清理）与 v1.21 变更清单（翻译 / 模板 / 折叠）
+
+### v1.20：删不必要文件
+
+一次性脚本 `_build/cleanup-1.20.mjs`（跑完即删）用 `git rm -f` 移走 **95 条路径**，四类：
+
+| 类别 | 例子 | 为什么 |
+| --- | --- | --- |
+| 死源码 | `src/StudioModels.tsx`、`src/ModelPicker.tsx`、`src/llmAdapter.ts`、`src/tags.ts` | 引用数 0，或只剩桶文件 re-export / 已过期 spec |
+| 死数据 | `src/data/booru.tsv.gz`（1.9 MB）、`booru.json`、`assets/brand/mochi.png`（1.1 MB）、`expressions/closed.webp`、`languages/*` | 运行时 0 引用（Danbooru 离线索引在 v1.15 换成素材库后就没人查了） |
+| 一次性脚本 | `scripts/` 四件、`_build` 下 6 个 `add-*-strings` / 7 个 `bump-*` / 5 个 `clean-v115-css*` / 6 个旧 `publish-*` / 7 个旧 `release-*.md` / `cargo_android.ps1`+`copy_so.ps1`+`gradle_assemble.ps1` | 每版用完即弃；构建链已收进 `build-apk.ps1` |
+| 过期 e2e | `app.spec.ts`、`studio-settings.spec.ts`、`catalog.spec.ts`（+harness）、`onboarding.spec.ts`、`optimizer.spec.ts`（+harness）、`prompt-library.spec.ts`（+harness）、`v14.spec.ts`（+harness）、`connections.spec.ts`、`android-assistant.mjs` | 依赖 v1.0–v1.17 已删的东西，修不如重写 |
+
+连带改动：`src/components.tsx` 只剩 `export { shortName } from "./modelNames";`；`src/modelNames.ts` 只留 `shortName`（删 `modelPath`）；三个测试文件删掉 4 条只测搜索的用例（97 → **93**）。
+
+**两个误删，已用 `git checkout HEAD -- <path>` 恢复**：`tests/fixtures/{parameters.jpg,plain.jpg}`（`src/metadata.test.ts` 要读）与 `_build/{diff-vs-upstream,show-release-body,gh-login-and-publish}.cjs`（HANDOFF §9.8 有引用）。教训：删之前对 `tests/fixtures` 与 `_build` 里的运维脚本再 grep 一遍**文件名**，不要只 grep import 路径。
+
+### v1.21：翻译走 API + 模板管理 + 折叠
+
+| # | 需求 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 翻译可调 API | `src/translate.ts`（新）+ `src/PromptTranslation.tsx` 重写 | 之前只有 Android 的 ML Kit（`src-tauri/src/translation.rs` 在非 Android 直接报「只能在 Android 上用」）。新引擎复用已配置的 `llmChat`：`translationSystem()` 明确要求「Danbooru 标签 / `<lora:…>` / `(tag:1.2)` / 括号逗号换行原样保留，只翻自然语言，只回答译文」。三档 `auto`/`device`/`api`，`auto` 先本机再 API，所以桌面也能用 |
+| 2 | 翻译对准提示词 | `PromptSection.tsx`（整段）、`PromptStudio.tsx`（画面描述 + 生成结果）、`ImageDetails.tsx`（图库详情正/负段）、`PromptEditor.tsx`（选中片段，原有） | 全部走同一个 `PromptTranslation` 弹层，方向按用途预选（→English / →中文） |
+| 3 | 折叠 | `CollapsibleCard.tsx` 加 `defaultOpen`；`PromptStudio.tsx` 模板区与「最近生成」改成折叠卡 | 模板卡的 eyebrow 显示当前模板名 / `{n} 个可用` / `未使用`，「最近生成」显示 `{n} 条` |
+| 4 | 模板方案保存 | `src/TemplateManager.tsx`（新）+ `template-manager.css`（新）+ `promptTemplates.ts` 加 7 个导出 | 新建 / 重命名 / 复制（`· 副本`、`· 副本 2`）/ 删除 / 导出全部 JSON / 导入 JSON；存储仍是 `prompt-templates-v1`（上限 100）。导入接受三种外形（包装对象 / 裸数组 / 单条），按 name 去重 |
+
+**校验（v1.21）**：`npx tsc -b` 无输出；`npx vitest run` **19 文件 / 101 测试**全绿（新增 `src/translate.test.ts` 3 条、`src/promptTemplates.test.ts` 5 条）；`npx vite build` 通过；`npx playwright test` 全量 **20 passed（24.5s）**（新增 `tests/v121.spec.ts` 3 条）。版本 1.21.0 / versionCode `12100`（`_build/bump-1.21.0.mjs`）；locale 1042 → **1081** 键（`_build/add-v121-strings.mjs`，+39）。
+
+**两个坑（v1.21）**：
+1. **`[hidden]` 会被自己的 `display` 规则打败**。给折叠卡内容写 `.template-slot .card-content { display: grid }` 后，折叠再也不会生效——浏览器内置的 `[hidden] { display: none }` 特异性比不过类选择器。必须写成 `.card-content:not([hidden])`。
+2. **e2e 里点导航按钮要用 `page.evaluate`**。`main#main.page-window` 覆盖在 `aside nav` 上方，`click()` 和 `click({ force: true })` 都会等到超时；改成 `page.evaluate(() => document.querySelectorAll("aside nav button")[i]?.click())` 立刻生效。
 
 
 
@@ -724,9 +770,9 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 ---
 
-## 11. 现在缺什么（v1.16 之后重核，按优先级）
+## 11. 现在缺什么（v1.21 之后重核，按优先级）
 
-> 这一节在 v1.15 发版后重新逐条核对过代码，不是沿用旧结论。标注「✅已核实」的都跑过 grep / 读过实现；标注「✅ v1.16 已做」的是本轮补掉的。
+> 这一节在 v1.15 发版后重新逐条核对过代码，不是沿用旧结论。标注「✅已核实」的都跑过 grep / 读过实现；标注「✅ v1.16 已做」的是那一轮补掉的。v1.21 又重核了一遍剩下的条目。
 
 ### P0 — 真正卡住体验的三条
 
@@ -763,29 +809,27 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 6. **删除只是隐藏**。`App.tsx` 的 `removed` 是 localStorage Set，图片仍在服务器上；UI 文案写的是「可恢复」。ComfyUI 没有标准删图 API，要真删得自己加成 Rust 命令去动服务器文件系统 —— 跨端风险大，建议**改文案**而不是加功能。
 
-7. **e2e 部分过期 + 无 CI** ✅已核实
-   - `.github/` 目录不存在，没有 CI。
-   - 仍过期的：`tests/app.spec.ts`、`tests/studio-settings.spec.ts`、`tests/catalog.spec.ts`（import 不存在的 `src/ModelImports`）、`tests/onboarding.spec.ts`（v1.15 起整个页面已删，可整份删掉）。
-   - 现在绿的只有 `tests/v114.spec.ts`（4）+ `tests/v115.spec.ts`（4）。
-   - 补 CI 的性价比最高：`tsc -b` + `vitest run` + `vite build` 三件套，十几行 YAML，能拦住本次这类回归（v1.14 的 COMBO 解析、v1.15 的轮询卡死都是单测能拦的）。
+7. **无 CI** ✅已核实（e2e 已在 v1.20 修好）
+   - `tests/` 现在只剩 6 个维护中的 spec，全量 `npx playwright test` **20 passed / 约 25 s**，不再有红。
+   - 但 `.github/` 目录仍然不存在，没有 CI。补 CI 的性价比最高：`tsc -b` + `vitest run` + `vite build` 三件套，十几行 YAML，能拦住本次这类回归（v1.14 的 COMBO 解析、v1.15 的轮询卡死都是单测能拦的）。
 
 ### P2 — 能更好
 
 8. `resolveGraph` / `autoBind` 没有单测——最该补的两个函数。
-9. **死代码清单**（`_build/find-orphans.mjs` 扫出来的，v1.1.3 现状）：
+9. **死代码清单**（`_build/find-orphans.mjs` 扫出来的）—— **v1.20 已整批清理，下表只剩结论**：
 
    | 文件 | 状态 |
    | --- | --- |
-   | `src/StudioModels.tsx` | **完全孤儿**——v1.1.3 删 `SettingsPanel` 后没有任何文件 import 它（它内部还调 `/bridge/model-info`、`/bridge/model-favorites`，那些接口在 v1.0 就没了，是纯死代码 + 死接口） |
-   | `src/ModelPicker.tsx` | 只被 `src/components.tsx` 桶文件 re-export，`<ModelPicker>` 全项目 0 处渲染 |
+   | ~~`src/StudioModels.tsx`~~ | **v1.20 已删**。v1.1.3 删 `SettingsPanel` 后它就没人 import，内部还调 v1.0 就没了的 `/bridge/model-info`、`/bridge/model-favorites` |
+   | ~~`src/ModelPicker.tsx`~~ | **v1.20 已删**。只被 `src/components.tsx` 桶文件 re-export，`<ModelPicker>` 全项目 0 处渲染 |
+   | ~~`src/llmAdapter.ts`~~ | **v1.20 已删**。0 处引用 |
+   | ~~`src/tags.ts`~~ / ~~`src/data/booru.tsv.gz`~~ / ~~`src/data/booru.json`~~ | **v1.20 已删**（连同 `scripts/compile-tags.py`）。删完后 `experience.test.ts` / `promptLibrary.test.ts` / `promptRobustness.test.ts` 里那 4 条只测搜索的用例一并移除，测试数 97 → 93 |
+   | ~~`assets/brand/mochi.png`~~（1.1 MB）/ `mochi.webp` / `languages/*` / `expressions/closed.webp` | **v1.20 已删**，全 0 引用。`open.webp`（`App.tsx:70` header）与 `sad.webp`（`MochiMascot.tsx:1`）保留 |
    | `src/workflow.ts` 的 `buildWorkflow` | 只剩定义 + 单测，产品代码无调用方 |
    | `src/workflowGraph.ts` 的 `layoutGraph` | **不是孤儿**：`WorkflowCanvas.tsx:124` 用它算节点坐标（`WorkflowCanvas.tsx:23` import） |
    | ~~`src/PromptAssistant.tsx`~~ | v1.15 已删 |
-   | ~~`src/usePromptSuggestions.ts`~~ / ~~`src/tags.worker.ts`~~ / ~~`src/caret.ts`~~ | v1.15 已删（Danbooru 联想整条链） |
 
-   注意 `src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这两个不算孤儿，别删。`src/data/booru.tsv.gz`（**1 962 825 字节 / 234 011 行**）在 v1.15 后**已无运行时引用**：`src/tags.ts` 仍在但无人 import，只有 `experience.test.ts:9` 还在 `gunzipSync` 它断言行数。**留着这 1.9 MB 的唯一代价是打包体积**（`vite build` 会把它当 asset 拷进 `dist/`，但不进 js chunk）。下次要么连 `tags.ts` 一起删、测试改成断言 `wardrobe.json`，要么就明确「保留给未来的补全功能」。
-
-   另：`src/StudioModels.tsx` 与 `src/ModelPicker.tsx` 这两个孤儿从 v1.1.3 挂到现在，**删它们能顺便带走 `/bridge/*` 死接口**，是目前最干净的一次清理。
+   注意 `src/testLocale.ts` 由 `vitest.config.ts` 引用、`src/vite-env.d.ts` 是类型声明——这两个不算孤儿，别删。
 10. 图片走 base64 data URL，大图吃内存；可以改成 `native` 返回本地临时文件路径 + `convertFileSrc`。
 11. `Settings.hires` / `Settings.upscale` / `Settings.loras` 在 v1.1.3 后没有 UI 入口（随 `SettingsPanel` 一起删了），只有 `{{key}}` 占位符能碰到 `clip_skip`，LoRA 完全碰不到。要做 LoRA 支持得先在设计上想清楚它和工作流节点的关系。
 

@@ -1,0 +1,219 @@
+/* v1.21: the template manager dialog. Pure white surfaces, accent borders. */
+
+.template-manager {
+  width: min(520px, calc(100% - 20px));
+}
+
+.template-manager .template-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.template-create {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.template-create input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.template-create button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(46vh, 380px);
+  overflow: auto;
+}
+
+.template-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+
+.template-list > li.selected {
+  border-color: var(--accent);
+  background: var(--surface-soft);
+}
+
+.template-pick {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 2px 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.template-pick strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-pick small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-tools {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.template-tools button {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.template-tools button:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.template-rename {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.template-rename input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+}
+
+.template-rename button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-empty {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.template-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.template-actions > button,
+.template-import {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.template-import input {
+  display: none;
+}
+
+.template-actions small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* The prompt page keeps the template block folded by default (v1.21).
+   `:not([hidden])` matters: a plain display rule would outrank the user-agent
+   `[hidden] { display: none }` and the folded card would stay on screen. */
+.template-slot .card-content:not([hidden]) {
+  display: grid;
+  gap: 10px;
+}
+
+/* v1.21: the recent-generations block folds too. */
+.history-slot .card-content:not([hidden]) {
+  display: grid;
+  gap: 10px;
+}
+
+.history-slot .studio-block-head {
+  justify-content: flex-end;
+}
+
+.studio-template-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.studio-template-bar .studio-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-template-bar > button {
+  flex: none;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.studio-meta-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.translation-engine {
+  display: grid;
+  gap: 4px;
+}
+
+.translation-engine-used {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}

@@ -140,6 +140,91 @@ export function templateById(id: string) {
   return readTemplates().find((t) => t.id === id) ?? null;
 }
 
+/** v1.21: a template needs a name to be worth keeping; blank falls back. */
+export function templateName(raw: string) {
+  const clean = raw.trim().replace(/\s+/g, " ").slice(0, 120);
+  return clean || tr("Modèle sans titre");
+}
+
+export function newTemplate(name: string, body = ""): PromptTemplate {
+  return {
+    id: crypto.randomUUID(),
+    name: templateName(name),
+    description: "",
+    systemPrompt: "",
+    params: [],
+    body: body.slice(0, FIELD_LIMIT),
+    at: Date.now(),
+  };
+}
+
+/** Copy keeps the name readable but never collides with the original. */
+export function duplicateTemplate(id: string) {
+  const source = templateById(id);
+  if (!source) throw new Error(tr("Modèle introuvable."));
+  const existing = new Set(readTemplates().map((t) => t.name));
+  let name = `${source.name} · ${tr("copie")}`.slice(0, 120);
+  let suffix = 2;
+  while (existing.has(name)) {
+    name = `${source.name} · ${tr("copie")} ${suffix++}`.slice(0, 120);
+  }
+  const next = saveTemplate({
+    ...source,
+    id: crypto.randomUUID(),
+    name,
+    at: Date.now(),
+  });
+  return { name, list: next };
+}
+
+export function renameTemplate(id: string, name: string) {
+  const source = templateById(id);
+  if (!source) throw new Error(tr("Modèle introuvable."));
+  return saveTemplate({ ...source, name: templateName(name), at: Date.now() });
+}
+
+/** One JSON file holding every template, for moving between devices. */
+export function exportTemplates(): string {
+  const list = readTemplates();
+  if (!list.length) throw new Error(tr("Aucun modèle à exporter."));
+  return JSON.stringify(
+    { kind: "huihua-templates", version: 1, templates: list },
+    null,
+    2,
+  );
+}
+
+/** Accepts the wrapped export, a bare array, or a single template object. */
+export function importTemplates(raw: string): PromptTemplate[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error(tr("Ce fichier n’est pas du JSON."));
+  }
+  const source = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as { templates?: unknown }).templates)
+      ? ((data as { templates: unknown[] }).templates)
+      : [data];
+  const parsed = source.filter(isTemplate);
+  if (!parsed.length) throw new Error(tr("Aucun modèle valide dans ce fichier."));
+  const existing = readTemplates();
+  const seen = new Set(existing.map((t) => t.name));
+  const added: PromptTemplate[] = [];
+  const merged = [...existing];
+  for (const entry of parsed) {
+    if (seen.has(entry.name)) continue;
+    seen.add(entry.name);
+    const fresh = { ...entry, id: crypto.randomUUID(), at: Date.now() };
+    added.push(fresh);
+    merged.push(fresh);
+  }
+  if (!added.length) throw new Error(tr("Ces modèles existent déjà."));
+  writeTemplates(merged.slice(0, TEMPLATE_LIMIT));
+  return added;
+}
+
 /** Replace {{key}} placeholders; unknown keys are left untouched. */
 export function renderTemplate(
   template: PromptTemplate,

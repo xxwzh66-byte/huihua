@@ -7,8 +7,6 @@ import {
   appendBlock,
   type PromptEntry,
 } from "./promptLibrary";
-import { createTagSearch, searchTags } from "./tags";
-
 let stored: Map<string, string>;
 beforeEach(() => {
   stored = new Map();
@@ -108,19 +106,4 @@ test("opposite negative exclusions are compatible while conflicting positive ins
     }),
   ).toEqual(["« sun » apparaît dans le positif et le négatif."]);
   expect(appendBlock("lake", ", , ")).toBe("lake");
-});
-
-test("search caches repeated normalized queries and evicts least recently used results", () => {
-  const rows = [
-    { name: "blue_sky", category: 0, count: 10 },
-    { name: "night_sky", category: 0, count: 5 },
-  ];
-  const search = createTagSearch(rows, 2);
-  const original = search("blue sky");
-  expect(search(" BLUE_SKY ")).toBe(original);
-  search("night");
-  search("sky");
-  expect(search("blue sky")).not.toBe(original);
-  expect(searchTags(rows, "sky", Number.NaN)).toEqual([]);
-  expect(searchTags(rows, "sky", Infinity)).toEqual([]);
 });

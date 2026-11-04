@@ -315,6 +315,7 @@ export default function PromptEditor({
           initial={
             translation ? value.slice(translation.start, translation.end) : ""
           }
+          initialTarget="en"
           onClose={() => setTranslation(undefined)}
           onInsert={(text) => {
             const next = insertTranslation(value, text, translation);

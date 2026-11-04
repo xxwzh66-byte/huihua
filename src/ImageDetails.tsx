@@ -1,7 +1,8 @@
 import { t as tr } from "./i18n";
 import { useEffect, useState } from "react";
-import { Check, Copy, LoaderCircle, Pencil, Send, Undo2 } from "lucide-react";
+import { Check, Copy, Languages, LoaderCircle, Pencil, Send, Undo2 } from "lucide-react";
 import { Modal } from "./Modal";
+import PromptTranslation from "./PromptTranslation";
 import { importImage } from "./metadata";
 import { dataUrlBytes } from "./imageBytes";
 import { imageUrl } from "./api";
@@ -41,6 +42,11 @@ export default function ImageDetails({
   const [positive, setPositive] = useState("");
   const [negative, setNegative] = useState("");
   const [editing, setEditing] = useState(false);
+  // v1.21: a picture already in the gallery can have its prompt translated
+  // without leaving the viewer.
+  const [translating, setTranslating] = useState<"positive" | "negative" | null>(
+    null,
+  );
 
   useEffect(() => {
     let alive = true;
@@ -118,7 +124,12 @@ export default function ImageDetails({
   }
 
   return (
-    <Modal title={tr("Prompt détaillé")} className="image-details" onClose={onClose}>
+    <>
+      <Modal
+        title={tr("Prompt détaillé")}
+        className="image-details"
+        onClose={onClose}
+      >
       {error && (
         <p className="detail-error" role="alert">
           {error}
@@ -142,6 +153,13 @@ export default function ImageDetails({
                 >
                   {copied === "positive" ? <Check size={14} /> : <Copy size={14} />}
                   {copied === "positive" ? tr("Copié") : tr("Copier")}
+                </button>
+                <button
+                  className="studio-link"
+                  aria-label={tr("Traduire le prompt")}
+                  onClick={() => setTranslating("positive")}
+                >
+                  <Languages size={14} /> {tr("Traduire")}
                 </button>
               </div>
               {editing ? (
@@ -169,6 +187,13 @@ export default function ImageDetails({
                 >
                   {copied === "negative" ? <Check size={14} /> : <Copy size={14} />}
                   {copied === "negative" ? tr("Copié") : tr("Copier")}
+                </button>
+                <button
+                  className="studio-link"
+                  aria-label={tr("Traduire le prompt")}
+                  onClick={() => setTranslating("negative")}
+                >
+                  <Languages size={14} /> {tr("Traduire")}
                 </button>
               </div>
               {editing ? (
@@ -242,5 +267,18 @@ export default function ImageDetails({
         </>
       )}
     </Modal>
+      {translating && (
+        <PromptTranslation
+          initial={translating === "positive" ? positive : negative}
+          initialTarget="en"
+          onClose={() => setTranslating(null)}
+          onInsert={(text) => {
+            if (translating === "positive") setPositive(text);
+            else setNegative(text);
+            setTranslating(null);
+          }}
+        />
+      )}
+    </>
   );
 }
