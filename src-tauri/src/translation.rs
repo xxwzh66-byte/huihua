@@ -12,6 +12,25 @@ pub async fn translate_text(app: tauri::AppHandle, text: String, source: String,
     { let _ = (app, text, source, target, cellular); Err("La traduction ML Kit est disponible sur Android.".into()) }
 }
 
+/// Opens a project page in the system browser. Only https is accepted so the
+/// command cannot be turned into a file:// or intent:// gadget.
+#[tauri::command]
+pub async fn open_link(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    if !url.starts_with("https://") || url.len() > 400 || url.contains(char::is_whitespace) {
+        return Err("Lien invalide".into());
+    }
+    #[cfg(target_os = "android")]
+    {
+        crate::biometrics::call(&app, "openLink", serde_json::json!({"url":url})).await?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, url);
+        Err("L’ouverture de liens est disponible sur Android.".into())
+    }
+}
+
 #[tauri::command]
 pub async fn set_app_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
     if language != "fr" && language != "en" && language != "zh-CN" { return Err("Invalid language".into()); }

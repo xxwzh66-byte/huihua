@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.23.0**（versionCode `12300`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.24.0**（versionCode `12400`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -842,6 +842,19 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - 发布：`node _build/publish-1.23.0.cjs`（上传前本地复核 SHA-256 / 证书 / versionCode，`--dry-run` 只做本地四项），Release id **434774443**，`draft=false prerelease=false`，digest 校验通过。
 - tag `v1.23.0` 用完整 40 位 sha `379bf962a1293131041b2f21715870acecb35eb8` 重指到发布提交（`PATCH /git/refs/tags/v1.23.0 {sha, force:true}`，7 位短 sha 会被拒）；独立核实后 main 与 tag 都指向 `379bf96`。
 - push：`git -c http.schannelCheckRevoke=false -c http.sslVerify=false push origin main` 一次过（`3551a74..379bf96`）。
+
+## 9.14 v1.24 变更清单（更新下载提速 / 去掉发布页链接 / 项目入口）
+
+| # | 需求 | 落点 | 说明 |
+|---|------|------|------|
+| 1 | 更新下载不再龟速 | `src-tauri/pocket-plugin/android/src/main/java/fr/azk/pocket/RemoteFiles.kt` | `download()` 改为 16 路 range 分片并行，`LANES = 16` / `MIN_LANE = 512 KB`（小于 8 MB 的文件仍走单流）；任何一路拿不到 206 就整体回退单流（`RangeUnavailable`）。官方 CDN 实测：单连接 26 KB/s，16 分片 **419 KB/s**，24 分片 488 KB/s。全程仍写 `.partial`，收尾才校验 size + SHA-256 再 `renameTo` |
+| 2 | 删掉「查看完整发布说明」 | `src/AppUpdater.tsx` / `src/settings-hub.css` | 弹层里 `release.page` 那个 `<a>` 整段删除，`.release-link` 两条样式一并清掉；locale 删 `Voir la publication complète` 一条 |
+| 3 | 应用内直达项目 | 新增 `src/project.ts` / `src/ProjectLink.tsx`，`src/Connections.tsx` 挂载 | 设置 → 应用 → 最后一行「GitHub 项目地址」，点击走 `native("open_link", {url})` 交给系统浏览器。桌面构建没有浏览器桥时回退到写剪贴板并提示「地址已复制到剪贴板。」 |
+| 4 | 新命令的内核 | `src-tauri/src/translation.rs` 的 `open_link` + `src-tauri/pocket-plugin/.../PocketPlugin.kt` 的 `openLink` | Rust 侧只放 `https://`、长度 ≤400、不含空白；Kotlin 侧同样校验后用 `Intent.ACTION_VIEW` 打开。命令已进 `invoke_handler!` |
+
+- 校验数字：`npx tsc -b` 干净；`npx vitest run` **19 文件 / 99 测试**；`npx playwright test` **22 passed / 24.3 s**（新增 `tests/v124.spec.ts` 两例：项目行点击后 `open_link` 收到 `https://github.com/xxwzh66-byte/huihua`；更新弹层只剩说明、一个 `<a>` 都没有）；`cargo check --offline` 通过（需 `TEMP=TMP=D:\demo\_tmp` 与 `PATH` 前置 `toolchain\mingw64in`）。
+- 文案：locale **1064 → 1067 键**（+4 条项目入口、−1 条发布页链接）。
+- 已知取舍：第三方 GitHub 反代实测 11 个里只有 2 个可用（`gh.monlor.com` 24 分片 1726 KB/s、`git.yylx.win` 17 KB/s），不稳定且不可信，**没有采用**；`npmmirror` 只镜像 npm 包，不托管 Release 资产，方案上无法复用。慢的根因是单连接被限速，靠并行就够。
 
 
 ## 10. 已知的坑（都踩过）

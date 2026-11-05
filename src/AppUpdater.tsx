@@ -246,13 +246,6 @@ export default function AppUpdater() {
               <ReleaseBody notes={release.notes} />
             </div>
           )}
-          {release.page && (
-            <p className="release-link">
-              <a href={release.page} target="_blank" rel="noreferrer">
-                {t("Voir la publication complète")}
-              </a>
-            </p>
-          )}
           {state.phase === "downloading" && (
             <>
               <progress

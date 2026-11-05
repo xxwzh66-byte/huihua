@@ -1,4 +1,4 @@
-# 绘画 1.23.0
+# 绘画 1.24.0
 
 绘画（huihua）是一个 ComfyUI 的 Android 客户端：在手机上写提示词、调参数、看实时进度，把出图的算力留给你的 ComfyUI 服务器。
 
@@ -29,6 +29,7 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
+| 1.24.0 | arm64-v8a | 待构建 | — |
 | 1.23.0 | arm64-v8a | 75.3 MB | [huihua-1.23.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.23.0/huihua-1.23.0-arm64.apk) |
 | 1.22.0 | arm64-v8a | 75.3 MB | [huihua-1.22.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.22.0/huihua-1.22.0-arm64.apk) |
 | 1.21.0 | arm64-v8a | 75.3 MB | [huihua-1.21.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.21.0/huihua-1.21.0-arm64.apk) |
@@ -38,12 +39,18 @@
 | 1.16.0 | arm64-v8a | 75.2 MB | [huihua-1.16.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.16.0/huihua-1.16.0-arm64.apk) |
 
 ```bash
-adb install huihua-1.23.0-arm64.apk
+adb install huihua-1.24.0-arm64.apk
 ```
 
 安装包使用本地自签名证书（`CN=HuiHua Local Build`，SHA-256 `9fe3dac1…bf9f`），首次安装需在系统里允许「安装未知来源应用」。自 1.0.0 起所有版本都用同一张证书签名，可以直接覆盖升级，不必先卸载。
 
 ## 更新内容
+
+### 1.24.0
+
+- 应用内更新下载改成分片并行，同样网络下从 26 KB/s 提到 400 KB/s 以上
+- 更新弹层不再甩「查看完整发布说明」的链接，说明就在弹层里
+- 设置页最后一行是项目入口，点一下直接在浏览器打开仓库
 
 ### 1.23.0
 

@@ -2,6 +2,7 @@ import { UpdateSettings } from "./AppUpdater";
 import "./settings-hub.css";
 import LanguagePicker from "./LanguagePicker";
 import Appearance from "./Appearance";
+import ProjectLink from "./ProjectLink";
 import { type ThemeId } from "./theme";
 import { t as tr, locale } from "./i18n";
 import { useEffect, useRef, useState } from "react";
@@ -357,6 +358,7 @@ export default function Connections({
             </label>
           </section>
           <UpdateSettings />
+          <ProjectLink />
         </div>
       </details>
 

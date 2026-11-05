@@ -10,6 +10,8 @@ import android.os.Looper
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
 import android.os.Build
 import android.view.WindowManager
@@ -50,6 +52,8 @@ class LanguageArgs { lateinit var language: String }
 
 @InvokeArg
 class ServiceArgs { lateinit var action: String; var language: String = "fr"; var cellular: Boolean = false }
+@InvokeArg
+class LinkArgs { lateinit var url: String }
 
 @TauriPlugin(permissions = [Permission(strings = [Manifest.permission.RECORD_AUDIO], alias = "microphone")])
 class PocketPlugin(private val activity: Activity): Plugin(activity) {
@@ -114,6 +118,15 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
   preferences.edit().putString("language", language).apply()
   invoke.resolve(JSObject())
  }
+ /** Opens a project link in the system browser; only https URLs are accepted. */
+ @Command fun openLink(invoke: Invoke) { activity.runOnUiThread {
+  try {
+   val url = invoke.parseArgs(LinkArgs::class.java).url
+   require(url.length <= 400 && url.startsWith("https://")) { "Invalid link" }
+   activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+   invoke.resolve(JSObject().put("opened", true))
+  } catch (e: Exception) { invoke.reject(e.message ?: "Link unavailable") }
+ } }
  @Command fun translateText(invoke: Invoke) { activity.runOnUiThread {
   expire()
   if (enabled && !unlocked) { invoke.reject("Application locked"); return@runOnUiThread }

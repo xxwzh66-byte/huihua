@@ -188,7 +188,7 @@ pub fn run() {
             llm::llm_save,
             llm::llm_models,
             llm::llm_chat,
-            translation::translate_text, translation::set_app_language,
+            translation::translate_text, translation::set_app_language, translation::open_link,
             lock_status,
             unlock,
             lock_session,
