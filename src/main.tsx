@@ -11,6 +11,9 @@ import "./mochi.css";
 import "./mobile.css";
 // Last: the theme sheet re-declares the surfaces that hardcode white.
 import "./theme.css";
+// After the theme sheet on purpose: the atelier grid re-orders the studio
+// children and repaints two of them, and it must outrank the theme surfaces.
+import "./atelier.css";
 
 // Paint the saved theme before the first render so the app never flashes white.
 applyTheme(readTheme());

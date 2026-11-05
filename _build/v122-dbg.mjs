@@ -1,0 +1,25 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
+const logs=[];
+page.on("console", m => logs.push(m.text()));
+page.on("pageerror", e => logs.push("ERR " + e.message));
+await page.route("**/__native", async (route) => {
+  const body = route.request().postDataJSON();
+  const cmd = body?.command; const path = body?.args?.path;
+  let result = "";
+  if (cmd === "lock_status") result = { supported:false, available:false, enabled:false, unlocked:true, delay:0, hideRecents:false, autoPrompt:false };
+  else if (cmd === "restore") result = "http://192.168.1.8:8188";
+  else if (path === "/api/system_stats") result = { system:{}, devices:[{ name:"cuda:0 RTX 4090", vram_total:1, vram_free:1, torch_vram_total:0, torch_vram_free:0 }] };
+  else if (path === "/api/object_info") result = {};
+  else if (path === "/api/queue") result = { queue_running: [], queue_pending: [] };
+  else if (path?.startsWith("/api/history")) result = {};
+  await route.fulfill({ status:200, contentType:"application/json", body: JSON.stringify({ ok:true, result }) });
+});
+await page.goto("http://127.0.0.1:14420", { waitUntil: "domcontentloaded" });
+await page.waitForTimeout(3000);
+console.log("tab:", await page.evaluate(() => document.querySelector("[aria-current]")?.textContent));
+console.log("BODY:", (await page.evaluate(() => document.body.innerText)).slice(0, 300));
+console.log("navs:", await page.evaluate(() => [...document.querySelectorAll("aside nav button")].map(b=>b.textContent)));
+console.log("logs:", logs.slice(0, 10));
+await browser.close();

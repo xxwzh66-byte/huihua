@@ -1,4 +1,4 @@
-# 绘画 1.21.0
+# 绘画 1.22.0
 
 绘画（huihua）是一个 ComfyUI 的 Android 客户端：在手机上写提示词、调参数、看实时进度，把出图的算力留给你的 ComfyUI 服务器。
 
@@ -7,6 +7,7 @@
 ## 特性
 
 - **直连 ComfyUI**：输入 `http://` 或 `https://` 的 ComfyUI 地址即可，走 ComfyUI 原生 `/api/*` 接口。
+- **一屏写完就能出图**：手机上「服务器 → 预设 → 提示词 → 实时预览」一路下来，生成按钮固定在底部标签栏上方，不用滑到页面末尾；平板和桌面上自动变两栏，预览与生成常驻右栏。
 - **实时进度**：WebSocket 直连 ComfyUI，显示真实百分比、当前执行节点与实时预览图。
 - **提示词翻译**：可调你已配置的生成 API 翻译提示词（电脑上也能用），标签与权重原样保留；也能用 Android 本机 ML Kit 离线翻译。工坊的正 / 负向提示词、提示词页的画面描述与生成结果、图库详情里的提示词都能直接翻。
 - **提示词模板**：一个模板 = 一份命名过的 API 指令，可新建 / 重命名 / 复制 / 删除，可导出成 JSON 换设备带走。
@@ -28,6 +29,7 @@
 
 | 版本 | 架构 | 大小 | 链接 |
 | --- | --- | --- | --- |
+| 1.22.0 | arm64-v8a | 待构建 | — |
 | 1.21.0 | arm64-v8a | 75.3 MB | [huihua-1.21.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.21.0/huihua-1.21.0-arm64.apk) |
 | 1.19.0 | arm64-v8a | 75.3 MB | [huihua-1.19.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.19.0/huihua-1.19.0-arm64.apk) |
 | 1.18.0 | arm64-v8a | 75.3 MB | [huihua-1.18.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.18.0/huihua-1.18.0-arm64.apk) |
@@ -35,12 +37,19 @@
 | 1.16.0 | arm64-v8a | 75.2 MB | [huihua-1.16.0-arm64.apk](https://github.com/xxwzh66-byte/huihua/releases/download/v1.16.0/huihua-1.16.0-arm64.apk) |
 
 ```bash
-adb install huihua-1.21.0-arm64.apk
+adb install huihua-1.22.0-arm64.apk
 ```
 
 安装包使用本地自签名证书（`CN=HuiHua Local Build`，SHA-256 `9fe3dac1…bf9f`），首次安装需在系统里允许「安装未知来源应用」。自 1.0.0 起所有版本都用同一张证书签名，可以直接覆盖升级，不必先卸载。
 
 ## 更新内容
+
+### 1.22.0
+
+- 工坊重排：手机上依次是「服务器 → 预设 → 提示词 → 实时预览」，生成按钮固定在底部标签栏上方，写一句按一下就能出图，不用再滑到页面最底。
+- 提示词卡有了自己的背景，正面 / 负面提示词、快捷按钮和「文字成就图像」标题成为一整块；实时预览从灰槽改成卡片，空态带一个居中的圆形图标。
+- 平板和桌面保持两栏，预览与生成按钮跟随滚动常驻右栏；手机上那根悬浮的快捷竖条去掉（底栏已经有五个入口）。
+- 夜间主题下生成按钮与底部标签栏的颜色修正，不再出现浅底白字。
 
 ### 1.21.0
 

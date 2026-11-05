@@ -121,7 +121,7 @@ export default function PromptAssembly({
     });
 
   return (
-    <CollapsibleCard title={tr("提示词装配")}>
+    <CollapsibleCard className="assembly-slot" title={tr("提示词装配")}>
       <p className="muted">
         {tr(
           "把固定块、质量标签和替换规则拼在提示词外面。工作流里的 {{prompt}} 会收到拼好的结果。",

@@ -1,0 +1,376 @@
+/*
+ * Atelier layout (v1.22).
+ *
+ * The studio page used to be a plain vertical stack: server pill → preset →
+ * workflow card → assembly card → prompts → and only *then* the render panel,
+ * with the generate button at the very bottom. On a phone that meant scrolling
+ * ~1300 px before you could press the one button the page exists for.
+ *
+ * This sheet leaves the DOM order untouched — every e2e selector still
+ * resolves in the same tree — and re-orders the same children with grid
+ * `order`:
+ *
+ *   phone   : 服务器 → 预设 → 提示词 → 渲染+生成 → 工作流 → 装配 → 导入
+ *   ≥900px  : 服务器 | 预设   /   提示词 | 渲染 (sticky)   /   工作流 …
+ *
+ * Imported last (after theme.css) so it wins the cascade. Every surface is
+ * painted through the theme tokens, so the five appearances keep working.
+ * Selectors repeat a class where theme.css carries `html[data-theme] .x`
+ * (0,2,1) and would otherwise out-rank a plain `.atelier-layout > .x`.
+ */
+
+/* ---- phone: one column, task order ---- */
+
+.atelier-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 13px;
+  align-items: start;
+}
+
+.atelier-layout > .studio-pc,
+.atelier-layout > .studio-pc.studio-pc {
+  order: 1;
+  margin: 0;
+  background: var(--lavender, var(--surface-soft));
+}
+
+.atelier-layout > .configuration-slot {
+  order: 2;
+  min-width: 0;
+}
+
+.atelier-layout > .studio-prompts {
+  order: 3;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.atelier-layout > .render-panel {
+  order: 4;
+}
+
+.atelier-layout > #studio-workflow {
+  order: 5;
+  min-width: 0;
+}
+
+.atelier-layout > .assembly-slot {
+  order: 6;
+}
+
+.atelier-layout > .import-summary {
+  order: 7;
+}
+
+.atelier-layout > .studio-imports {
+  order: 8;
+}
+
+/* The prompt entries now live inside a soft shell, so they stay raised. */
+.atelier-layout > .studio-prompts .prompt-entry,
+.atelier-layout > .studio-prompts .prompt-entry.prompt-entry {
+  background: var(--surface);
+}
+
+/* ---- the render panel: a real card, not a grey trough ---- */
+
+.atelier-layout > .render-panel.render-panel {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  gap: 11px;
+}
+
+.atelier-layout > .render-panel .output-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 168px;
+  padding: 18px 16px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.atelier-layout > .render-panel .output-empty .empty-orbit {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--surface-raised, var(--surface));
+  color: var(--muted);
+}
+
+.atelier-layout > .render-panel .output-empty h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.atelier-layout > .render-panel .output-empty p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+.atelier-layout > .render-panel .output-image {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-soft);
+}
+
+.atelier-layout > .render-panel .output-image img {
+  max-height: 56vh;
+  object-fit: contain;
+}
+
+/* The generate bar is the primary action: one tight row under the preview.
+   On phones it docks just above the tab bar so the button never needs a
+   scroll; from tablets up it stays inside the render card. */
+.atelier-layout > .render-panel > .generate-bar,
+.atelier-layout > .render-panel > .generate-bar.generate-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 0 0;
+  padding: 9px 11px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 899px) {
+  .atelier-layout > .render-panel > .generate-bar.generate-bar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(86px + var(--safe-bottom));
+    z-index: 21;
+    margin: 0;
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 30px #4f4f4f26;
+  }
+
+  /* Room for the docked bar and the tab bar, so the last card can always be
+     scrolled clear of both. */
+  .atelier-layout {
+    padding-bottom: 132px;
+  }
+
+  /* The fixed bar no longer takes part in the panel's flow, so the preview
+     keeps its own room and the last card never hides behind the bar. */
+  .atelier-layout > .render-panel {
+    padding-bottom: 18px;
+  }
+}
+
+.atelier-layout > .render-panel > .generate-bar > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.atelier-layout > .render-panel > .generate-bar strong {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.atelier-layout > .render-panel > .generate-bar small {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.atelier-layout > .render-panel > .generate-bar > .primary {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 9px 14px;
+  font-size: 13.5px;
+}
+
+/* Phones: the queue line is noise next to a button this important. */
+@media (max-width: 519px) {
+  .atelier-layout > .render-panel > .generate-bar small {
+    display: none;
+  }
+}
+
+/*
+ * Phones again: the prompt card and the empty preview together must fit one
+ * screen, otherwise the generate button still needs a scroll to reach.
+ */
+@media (max-width: 899px) {
+  .atelier-layout > .studio-prompts {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .atelier-layout > .studio-prompts .studio-section-heading h2 {
+    font-size: 17px;
+  }
+
+  .atelier-layout > .studio-prompts .prompt-entry {
+    padding: 11px 12px;
+    border-radius: 14px;
+  }
+
+  .atelier-layout > .studio-prompts .prompt-entry span {
+    -webkit-line-clamp: 3;
+  }
+
+  .atelier-layout > .studio-prompts .prompt-shortcuts {
+    gap: 6px;
+  }
+
+  .atelier-layout > .render-panel .output-empty {
+    min-height: 132px;
+    padding: 14px 12px;
+    gap: 4px;
+  }
+
+  .atelier-layout > .render-panel .output-empty .empty-orbit {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 8px;
+  }
+
+  .atelier-layout > .render-panel .output-empty h3 {
+    font-size: 14.5px;
+  }
+
+  .atelier-layout > .render-panel .output-empty p {
+    font-size: 11.5px;
+  }
+}
+
+/*
+ * Phones: the dock already carries navigation and the Generate button sits
+ * inside the render panel, so the floating shortcut rail only shadows the
+ * prompt card. Keep it for tablets and up.
+ */
+@media (max-width: 899px) {
+  .studio-quick-nav.studio-quick-nav {
+    display: none;
+  }
+}
+
+/* ---- tablet and up: two columns, render pinned on the right ---- */
+
+@media (min-width: 900px) {
+  .atelier-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.96fr);
+    gap: 16px 20px;
+  }
+
+  .atelier-layout > .studio-pc {
+    grid-area: 1 / 1;
+  }
+
+  .atelier-layout > .configuration-slot {
+    grid-area: 1 / 2;
+  }
+
+  .atelier-layout > .studio-prompts {
+    grid-area: 2 / 1;
+    padding: 16px;
+  }
+
+  .atelier-layout > .render-panel {
+    grid-column: 2;
+    grid-row: 2 / span 6;
+    position: sticky;
+    top: 16px;
+    padding: 16px;
+  }
+
+  .atelier-layout > #studio-workflow,
+  .atelier-layout > .assembly-slot,
+  .atelier-layout > .import-summary {
+    grid-column: 1;
+  }
+
+  .atelier-layout > .studio-imports {
+    grid-column: 1 / -1;
+  }
+
+  .atelier-layout > .render-panel > .generate-bar {
+    position: sticky;
+    bottom: 16px;
+  }
+
+  .atelier-layout > .render-panel .output-empty {
+    min-height: 260px;
+  }
+
+  .atelier-layout > .render-panel .output-image img {
+    max-height: 58vh;
+  }
+}
+
+@media (min-width: 1280px) {
+  .atelier-layout {
+    grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
+    gap: 18px 26px;
+  }
+
+  .atelier-layout > .studio-prompts,
+  .atelier-layout > .render-panel.render-panel {
+    padding: 18px;
+  }
+}
+
+/* Short landscape phones: the prompt shell eats the viewport otherwise. */
+@media (max-width: 899px) and (max-height: 430px) {
+  .atelier-layout > .studio-prompts {
+    padding: 10px;
+  }
+
+  .atelier-layout > .render-panel .output-empty {
+    min-height: 140px;
+  }
+}
+
+/*
+ * The night accent is a *light* tone (#dfe3ea), so `.render-panel .primary
+ * { color: white }` from mochi.css leaves white-on-pale-grey. Repaint the
+ * generate button (and the quick-nav spark) with the swatch colour instead.
+ */
+html[data-theme] .atelier-layout > .render-panel > .generate-bar > .primary,
+html[data-theme] .atelier-layout > .render-panel > .generate-bar > .primary:hover:not(:disabled),
+:root[data-theme] .studio-quick-nav .quick-generate {
+  color: var(--swatch);
+}
+
+/*
+ * mochi.css paints the dock and the active nav chip with literal greys
+ * (`#f0f0f0`, `#dedede`), which stay light in the dark themes. Repaint them
+ * through the tokens so the bar belongs to whatever appearance is active.
+ */
+html[data-theme] .sidebar.sidebar {
+  background: var(--surface-soft);
+  border-top: 1px solid var(--line);
+}
+
+html[data-theme] .sidebar .nav.active .nav-icon {
+  background: var(--surface-raised);
+}
+
+html[data-theme] .sidebar .nav.active > span:last-child {
+  color: var(--ink);
+}

@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.21.0**（versionCode `12100`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.22.0**（versionCode `12200`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -47,7 +47,7 @@ npx vite build              # 前端产物到 dist/
 ### 3.1 前端 `src/`（97 个文件）
 
 **入口**
-- `src/main.tsx` — 挂载 `AppLock > App`，CSS 引入顺序：`styles.css → experience.css → refinements.css → polish.css → mochi.css → mobile.css → theme.css`。**顺序有意义**，后面的覆盖前面的；`theme.css` 必须留在最后（v1.19）。
+- `src/main.tsx` — 挂载 `AppLock > App`，CSS 引入顺序：`styles.css → experience.css → refinements.css → polish.css → mochi.css → mobile.css → theme.css → atelier.css`。**顺序有意义**，后面的覆盖前面的；`theme.css` 必须保持倒数第二（v1.19），`atelier.css` 必须最后（v1.22，它用 `order` 重排工坊并覆写主题表面）。
 - `src/App.tsx`（1589 行，最大的文件）— 全局状态 + 各页渲染 + 生成流程。
 
 **App.tsx 关键锚点**（改代码前先看这些行号，会随编辑漂移，按函数名 grep）
@@ -132,7 +132,9 @@ results / preview → #studio-render
 | `PromptSection.tsx`（约 80 行） | 工坊的「文字成就图像」卡，打开 `PromptEditor`；「打开素材库」按钮 |
 | `PromptAssembly.tsx`（379 行，v1.18） | 工坊的「提示词装配」卡：四栏固定块 / 质量标签 + 替换规则表 + 三组预设 picker |
 | `nodeSkip.ts`（157 行，v1.18） | 节点旁路：`applySkips` 剥 `_skip` 节点并重连下游、`skipStatus` 判可跳过、`graphStats` 数节点与连线 |
-| `theme.ts` / `theme.css`（v1.19） | 五套主题：`pure` / `warm` / `mint` / `ink` / `night`。`theme.ts` 管 id 与 localStorage，`theme.css` 是变量 + 覆盖层（**必须最后一个 import**，见 `main.tsx`） |
+| `theme.ts` / `theme.css`（v1.19） | 五套主题：`pure` / `warm` / `mint` / `ink` / `night`。`theme.ts` 管 id 与 localStorage，`theme.css` 是变量 + 覆盖层（**必须倒数第二个 import**，见 `main.tsx`） |
+| `atelier.css`（约 370 行，v1.22） | 工坊布局层：不改 DOM、只用 CSS Grid + `order` 重排 `.atelier-layout` 的子元素；手机单列「提示词 → 预览+生成按钮」、≥900px 两栏右栏 sticky；顺带把 `.studio-prompts` / `.render-panel` 从灰槽改成主题卡片。**必须最后一个 import** |
+| `StudioNav.tsx`（约 100 行，v1.22 重写） | 画布快捷导航。修掉三个早已不存在的锚点（`studio-model` / `studio-loras` / `studio-generation`），改为 `studio-configuration` / `studio-workflow` / `studio-prompts` / `studio-render`，用 `essential` 标记决定「有工作流时是否显示」；手机端由 `atelier.css` 整体隐藏 |
 | `Appearance.tsx`（59 行，v1.19） | 设置页「外观」行 + 五色选择弹层（`.theme-options[role=radiogroup]`） |
 | `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
 | `Glossary.tsx`（约 290 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json`。v1.16 加 `onDescribe`：选中整套后可「发送到画面描述」 |
@@ -421,6 +423,8 @@ npx playwright test
 **v1.21 新增并通过的**：`tests/v121.spec.ts`（3 用例）。覆盖：工坊「翻译提示词」快捷按钮 → 弹层里把引擎切到 API → mock 的 `llm_chat` 返回带 ```` ``` ```` 围栏的译文 → 断言围栏被 `cleanAnswer` 去掉且 `.translation-engine-used` 显示「经由 API」→ 插入后正向提示词被替换；模板管理弹层的新建 / 重命名 / 复制（`副本` 排在最前，因为列表是新的在前）/ 导出（下载文件名 `huihua-templates.json`）/ 删除；模板卡与「最近生成」卡默认折叠、点 heading 展开、eyebrow 显示 `1 条`。
 
 肉眼确认 UI 的老办法（`_build/v121-shot.mjs`）见第 8 节。
+
+**v1.22（工坊布局重构）没有新增 spec**：那次只动 CSS（`src/atelier.css`）+ `StudioNav.tsx` 的锚点，20 个既有用例仍全部通过——这本身就是回归证据，因为 `.generate-bar` / `.prompt-entry` / `.card-heading` 都靠 DOM 顺序工作，用 `order` 重排后它们的位置变了但选择器不变。布局的肉眼复核走 `_build/v122-shot.mjs`（四档宽度）+ `v122-measure.mjs`（打印每个子元素的 `order` / `grid` / 坐标）+ `v122-theme.mjs`（五套主题色值探针），细节见 §9.12。
 
 ---
 
@@ -748,6 +752,50 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
   `apksigner sign --ks _build\huihua-release.jks --ks-key-alias huihua --ks-pass pass:huihua2026 --key-pass pass:huihua2026 --out dist-apk\huihua-<VER>-arm64.apk <unsigned.apk>`。
   另外 `vim` 提示 `Unable to initialize metrics, ensure C:\Users\32978\.android is writable` 是同一个权限问题的无害副产物，可以忽略。
 
+
+
+## 9.12 v1.22 变更清单（工坊布局重构）
+
+用户只说了一句「重构工坊界面的布局排版，自行决定」。结论：**不改 DOM 顺序**，因为 5 份 spec 里几十个选择器（`.generate-bar` / `.prompt-entry` / `.card-heading` 文案 / `.assembly-*`）都挂在现有结构上；改 CSS 的 `order` 更省事也更好回退。
+
+### 手机（<900px）单列顺序
+
+| 次序 | 元素 | 原因 |
+| --- | --- | --- |
+| 1 | `button.studio-pc` 服务器胶囊 | 留在顶部，随时能点开连接面板 |
+| 2 | `.configuration-slot` 预设 | 选模型/尺寸是最先要做的事 |
+| 3 | `.studio-prompts` 提示词卡 | 写作区上移，负向与快捷按钮同屏 |
+| 4 | `.render-panel` 实时预览 + `.generate-bar` | **关键**：原来生成条在整页最底（要滑约 1300 px），现在紧跟提示词 |
+| 5-7 | `#studio-workflow` / `.assembly-slot` / `.import-summary` | 低频操作沉到底部，且都是折叠卡 |
+| 8 | `.studio-imports` | 一次性的「从图像取参数 / 存预设」 |
+
+≥900px 两栏：第 1 行 `studio-pc | configuration-slot`，第 2 行起左栏提示词 → 工作流 → 装配 → 导入摘要，右栏 `.render-panel` `grid-row: 2 / span 6` + `position: sticky; top: 16px`。≥1280px 列宽 `1.14fr / 0.86fr`。
+
+### 三个刻意的取舍（都试过别的写法）
+
+- **手机上的生成条是 `position: fixed`**。static 要滑才能按（原来的病）；sticky 在空态时压在预览上方挡内容。最终 fixed 到底栏上方 `bottom: calc(86px + var(--safe-bottom))`，同时 `.atelier-layout { padding-bottom: 132px }` 让最后一张卡（`.studio-imports`）也能滚出来、不藏在条下面。桌面 `min-width:900px` 里才改回 `position: sticky; bottom: 16px`。
+- **手机上隐藏 `StudioNav` 快捷栏**（`.studio-quick-nav.studio-quick-nav { display: none }`）。底栏已五个入口、生成按钮就在预览卡里，那根 38 px 悬浮竖条只剩遮挡作用。桌面/平板保留。
+- **`.studio-prompts` 从裸 section 变成卡片**（`var(--surface-soft)` + 1px `var(--line)` + 18px 圆角 + 14px padding）。原来它没有背景，正面/负面两个白框浮在页面上，与下面「实时预览」的灰槽不是一套语言。
+
+### 必须记住的特异性
+
+`src/theme.css` 里有一批 `html[data-theme] .x`（特异性 0,2,1）会压过普通 `.atelier-layout > .x`（0,2,0）。所以 `atelier.css` 里对 `.studio-pc.studio-pc`、`.render-panel.render-panel`、`.generate-bar.generate-bar`、`.prompt-entry.prompt-entry` 重复写类名提权；反过来，主题相关的两个补丁要写 `html[data-theme] …` 版本：
+- `html[data-theme] .atelier-layout > .render-panel > .generate-bar > .primary { color: var(--swatch) }` —— 否则 night 下白字贴浅灰底（`src/mochi.css:1997` 写死了 `color: white`）；
+- `html[data-theme] .sidebar.sidebar` 与 `.nav.active .nav-icon` —— `src/mochi.css:201-220` 硬编码 `#f0f0f0` / `#dedede`，night 下底栏是亮的。
+
+### 校验数字
+
+- 手机 `390×844`：整页 1374 px（原 1390），生成条 `position: fixed`、高 64 px、`bottom: 86px`，预览卡顶 540（原 905）。
+- 平板 `768×1024`：单列，预览卡顶 613。
+- 桌面 `1180×900`：两栏，左栏 516 px / 右栏 496 px，预览卡顶 240、高 433。
+- 宽屏 `1440×1000`：左 573 / 右 433。
+- 五套主题探针（`_build/v122-theme.mjs`）全过：pure 白、warm `rgb(246,239,227)`、mint `rgb(242,250,246)`、ink `rgb(247,248,250)`、night `rgb(34,38,46)` 底 + `rgb(232,233,238)` 字，无白块。
+- locale：`zh-CN.json` / `en.json` 各 **1083 键**（v1.22 补 `Workflow`、`Prompts` 两条 nav 标签）。
+
+### 顺带修掉的东西
+
+- `StudioNav.tsx` 的三个死锚点（v1.20 清理后 `studio-model` / `studio-loras` / `studio-generation` 在 `src/` 里 grep 计数为 0）。现在 `sections` 四项、`essential` 标记控制可见性，滚动高亮逻辑未变。
+- 复核脚本：`_build/v122-shot.mjs`（四档全页图）、`v122-measure.mjs`（逐元素 top/h/order/grid 与视口截图）、`v122-bar.mjs`（单量生成条）、`v122-theme.mjs`（五主题色值探针）、`v122-scroll.mjs`（三个滚动位置）。都 mock `**/__native`，注意响应要包一层 `{ value: … }`（`src/api.ts` 的 `native()` 取 `json.value`）。
 
 
 ## 10. 已知的坑（都踩过）
