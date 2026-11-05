@@ -856,6 +856,15 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 - 文案：locale **1064 → 1067 键**（+4 条项目入口、−1 条发布页链接）。
 - 已知取舍：第三方 GitHub 反代实测 11 个里只有 2 个可用（`gh.monlor.com` 24 分片 1726 KB/s、`git.yylx.win` 17 KB/s），不稳定且不可信，**没有采用**；`npmmirror` 只镜像 npm 包，不托管 Release 资产，方案上无法复用。慢的根因是单连接被限速，靠并行就够。
 
+### 构建产物与发布（1.24.0）
+
+- `_build/bump-1.24.0.mjs` → 四处均 1.24.0，`tauri.properties` 为 `versionName=1.24.0` / `versionCode=12400`。
+- 构建沿用 `_build/build-1.24.0.ps1`（`build-1.23.0.ps1` 的副本，只改 `$Version`）：cargo ok、`gradle exit=0`（`BUILD SUCCESSFUL in 2m 48s`，130 tasks，Kotlin 侧新代码一并编译通过）、`apksigner exit=0`。
+- 产物 `dist-apk/huihua-1.24.0-arm64.apk`，**75 269 887 字节**，`versionCode='12400'` / `versionName='1.24.0'`，`application-label:'绘画'`，证书 `9fe3dac1…bf9f`，APK SHA-256 `d71a82646db5e6f5b8959b9f847bfd3532e92d10ab785106f087744b8ed6c676`。
+- 嵌入校验：`dist/assets` 下 9 个 js/css 全部在 `lib/arm64-v8a/libhuihua_lib.so` 里（`missing: 0`）。
+- 发布 `node _build/publish-1.24.0.cjs` → Release id **435349067**，`draft=false prerelease=false`，`digest ok: true`；tag `v1.24.0` 用完整 40 位 sha 重指到 `19139c7b31ebdbc8a844f0632f400bc7882f388f`，独立核实 tag 与 main 同 sha。
+- push 这次又撞上 `Recv failure: Connection was reset`，前 4 次失败、第 5 次成功（`05ba1fc..19139c7`）。**443 阻断是间歇的，重试循环比排查有用。**
+
 
 ## 10. 已知的坑（都踩过）
 
