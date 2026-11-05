@@ -832,6 +832,17 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 **为什么没动「服务器资源」里的模型选择**：预设条原本兼着「挑 checkpoint + 尺寸」的职责，但工坊真正的出图参数来自占位符解析（`resolveGraph(custom, settings)`），选模型/尺寸的权威位置一直在设置页的「服务器资源」与画布的 `select` 字段里，所以撤掉预设条不影响出图路径。
 
+### 构建产物与发布（1.23.0）
+
+- 产物 `dist-apk/huihua-1.23.0-arm64.apk`，**75 253 503 字节**，`versionCode='12300'` / `versionName='1.23.0'`，证书 `9fe3dac1…bf9f`，APK SHA-256 `adbba88ef73a3b5646544547d496e28c99da35db86650731d29174894f2aeed6`。
+- **`_build/build-apk.ps1` 这次直接跑了但立刻退出**：它在 `$ErrorActionPreference = "Stop"` 下调 `node .../vite.js build`，而 vite 往 stderr 写的那句 `[plugin builtin:vite-reporter]` 被 PowerShell 当成 `NativeCommandError` 抛出来 → 脚本停在第一步。绕法是本版新建的 `_build/build-1.23.0.ps1`（同样步骤，`$ErrorActionPreference = "Continue"`，cargo → 复制 + strip `.so` → gradle → apksigner → 打印三件套），一次跑通：cargo ok、`gradle exit=0`（`BUILD SUCCESSFUL in 1m38s`，130 tasks）、`apksigner exit=0`。
+  - 另注：PowerShell 的 `-File .\_build\build-1.23.0.ps1` 在 bash 里传参会把路径里的反斜杠吃掉（报「实际参数»._buildbuild-1.23.0.ps1»」）→ 必须写正斜杠 `'D:/demo/Paint-v1/_build/build-1.23.0.ps1'`。
+- gradle 仍走已解压的发行版：`$USERPROFILE\.gradle\wrapper\dists\gradle-8.14.3-bin\cv11ve7ro1n3o1j4so8xd9n66\gradle-8.14.3\bin\gradle.bat --no-daemon -g D:\demo\_tmp\gradle assembleRelease`，`TEMP/TMP/GRADLE_USER_HOME` 全指 `D:\demo\_tmp`；NDK 的 `aarch64-linux-android29-clang.cmd` 通过 `CC_aarch64_linux_android` / `CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER` 传给 cargo（不设就报 `failed to find tool "clang.exe"`）。
+- 嵌入校验：`dist/assets` 下 14 个文件全部能在 `lib/arm64-v8a/libhuihua_lib.so` 里找到（`missing: 0`）。
+- 发布：`node _build/publish-1.23.0.cjs`（上传前本地复核 SHA-256 / 证书 / versionCode，`--dry-run` 只做本地四项），Release id **434774443**，`draft=false prerelease=false`，digest 校验通过。
+- tag `v1.23.0` 用完整 40 位 sha `379bf962a1293131041b2f21715870acecb35eb8` 重指到发布提交（`PATCH /git/refs/tags/v1.23.0 {sha, force:true}`，7 位短 sha 会被拒）；独立核实后 main 与 tag 都指向 `379bf96`。
+- push：`git -c http.schannelCheckRevoke=false -c http.sslVerify=false push origin main` 一次过（`3551a74..379bf96`）。
+
 
 ## 10. 已知的坑（都踩过）
 
