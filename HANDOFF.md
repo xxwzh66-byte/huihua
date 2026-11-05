@@ -1,7 +1,7 @@
 # 绘画（huihua）接手文档
 
 > 写给下一个接手这个项目的人（或未来的自己）。读完这份能直接改代码、跑测试、出包、发版。
-> 当前版本：**1.22.0**（versionCode `12200`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
+> 当前版本：**1.23.0**（versionCode `12300`），分支 `main`，远端 `https://github.com/xxwzh66-byte/huihua.git`。
 > 仓库**没有本地 git tag**，所有 Release 都用 GitHub API 创建（原因见「坑」一节）。
 > 端到端出图流程另见 **[docs/生成图片指南.md](docs/生成图片指南.md)**（面向用户 + 开发者两条线）。
 
@@ -34,7 +34,7 @@ cd D:\demo\Paint-v1
 npm install
 npm run dev                 # http://127.0.0.1:1420
 npx tsc -b                  # 类型检查（必须无输出）
-npx vitest run              # 19 文件 / 101 测试
+npx vitest run              # 19 文件 / 99 测试
 npx vite build              # 前端产物到 dist/
 ```
 
@@ -69,7 +69,7 @@ npx vite build              # 前端产物到 dist/
 | 609 | `importFile(file, "image" \| "workflow")` |
 | 654 | `views(items)` — GalleryItem → ViewItem |
 | 707 | `renderPage(tab, active)` — 所有页面都从这里出 |
-| 830-919 | 工坊：`.studio-pc`(830) / `.configuration-slot`(855) / `#studio-workflow`(919) |
+| 830-919 | 工坊：`.studio-pc`(830) / `.studio-prompts`(855) / `#studio-workflow`(919)（v1.23 起没有 `.configuration-slot`） |
 | 954 | `<WorkflowShelf>` |
 | 1034 | `<PromptSection>` |
 | 1069 | `#studio-render` 实时预览 |
@@ -134,7 +134,7 @@ results / preview → #studio-render
 | `nodeSkip.ts`（157 行，v1.18） | 节点旁路：`applySkips` 剥 `_skip` 节点并重连下游、`skipStatus` 判可跳过、`graphStats` 数节点与连线 |
 | `theme.ts` / `theme.css`（v1.19） | 五套主题：`pure` / `warm` / `mint` / `ink` / `night`。`theme.ts` 管 id 与 localStorage，`theme.css` 是变量 + 覆盖层（**必须倒数第二个 import**，见 `main.tsx`） |
 | `atelier.css`（约 370 行，v1.22） | 工坊布局层：不改 DOM、只用 CSS Grid + `order` 重排 `.atelier-layout` 的子元素；手机单列「提示词 → 预览+生成按钮」、≥900px 两栏右栏 sticky；顺带把 `.studio-prompts` / `.render-panel` 从灰槽改成主题卡片。**必须最后一个 import** |
-| `StudioNav.tsx`（约 100 行，v1.22 重写） | 画布快捷导航。修掉三个早已不存在的锚点（`studio-model` / `studio-loras` / `studio-generation`），改为 `studio-configuration` / `studio-workflow` / `studio-prompts` / `studio-render`，用 `essential` 标记决定「有工作流时是否显示」；手机端由 `atelier.css` 整体隐藏 |
+| `StudioNav.tsx`（约 100 行，v1.22 重写，v1.23 减到三项） | 画布快捷导航。修掉三个早已不存在的锚点（`studio-model` / `studio-loras` / `studio-generation`），v1.23 删掉预设条后再去掉 `studio-configuration`，现在只有 `studio-workflow` / `studio-prompts` / `studio-render`，用 `essential` 标记决定「有工作流时是否显示」；手机端由 `atelier.css` 整体隐藏 |
 | `Appearance.tsx`（59 行，v1.19） | 设置页「外观」行 + 五色选择弹层（`.theme-options[role=radiogroup]`） |
 | `PromptEditor.tsx`（约 387 行） | 提示词编辑器。**v1.15 起只留**：文本/区块、翻译、历史、可复用区块、权重、撤销重做（语音助手、自动补全、Danbooru 联想、检查页全部移除） |
 | `Glossary.tsx`（约 290 行，组件名 `Wardrobe`） | **v1.15 重写为素材库**：服装/场景/姿势/表情四货架，读 `src/data/wardrobe.json`。v1.16 加 `onDescribe`：选中整套后可「发送到画面描述」 |
@@ -156,7 +156,8 @@ results / preview → #studio-render
 | `AppUpdater.tsx`（320 行） | 应用内更新 + 发布说明渲染 + `mochi-update-auto` 开关 |
 | `GalleryGrid.tsx` / `Viewer.tsx` / `Picture.tsx` | 图库三件套 |
 | `AppLock.tsx` | 生物识别锁（`LockSettings` 已从设置页摘掉，但组件还在） |
-| `presets.tsx` / `Presets.tsx` / `presetStore.ts` | 预设，`InferencePreset.mode` 保留 `"simple" \| "workflow"` 仅为兼容旧数据 |
+| ~~`Presets.tsx` / `presetStore.ts`~~ | **v1.23 已删**：工坊的「你的配置 / 选择预设」整条撤掉，选模型与尺寸回到「服务器资源」与画布里的参数 |
+| `modelNames.ts` | **v1.23 已删**：只剩的 `shortName` 唯一调用方就是 `Presets.tsx` |
 
 **CSS**：`styles.css`(27K) `mochi.css`(38K) `experience.css`(18K) `mobile.css`(12K) 是主样式；其余是按需引入的局部样式（`llm-settings.css` / `server-resources.css` / `workflow-canvas.css` / `workflow-shelf.css` / `prompt-studio.css` / `prompt-section.css` / `settings-hub.css` …）。
 设计变量在 `styles.css` 顶部：`--ink:#1b1b1b; --muted:#6d6d6d; --accent:#1b1b1b; --line:#e4e4e4; --panel:#ffffff;` + `--safe-top/--safe-bottom`（env insets）。**纯白风格靠这套 token，别引入新颜色。**
@@ -221,7 +222,7 @@ restore / disconnect / connect_server / api / image / save_image
 | `mochi-voice-draft-v1` | 助手草稿（**v1.15 起无写入方**） | 原 `PromptAssistant.tsx` |
 | `mochi-update-auto` / `mochi-update-check` | 自动检查更新开关 / 上次检查时间 | `AppUpdater.tsx` |
 | `mochi-theme` | **v1.19** 主题 id：`pure` / `warm` / `mint` / `ink` / `night`（默认 `pure`） | `theme.ts` 的 `THEME_KEY` |
-| `inference-presets-v1` | 预设 | `presetStore.ts` |
+| ~~`inference-presets-v1`~~ | **v1.23 起无人读写**（`presetStore.ts` 已删；老数据留在设备里不会造成问题） | — |
 | `model-favorites-v1` | 模型收藏（**v1.20 起 `StudioModels.tsx` / `ModelPicker.tsx` 已删，这一项彻底无人读写**） | — |
 | `autocomplete-enabled` / `biometric-auto-prompt` / `size-presets` | 杂项（`autocomplete-enabled` **v1.15 起无写方**） | 各处 |
 
@@ -391,7 +392,7 @@ node _build\publish-<VER>.cjs             # 真发
 
 `vitest.config.ts`：`include: ["src/**/*.test.ts"]`，`setupFiles: ["src/testLocale.ts"]`（把 locale 钉在 `fr`，所以断言里是法语串）。
 
-现有 19 个测试文件 / **101 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）/ `wardrobeNames`（v1.17）/ `promptRules`（v1.18）/ `nodeSkip`（v1.18）/ `translate`（v1.21）/ `promptTemplates`（v1.21）。
+现有 19 个测试文件 / **99 个用例**，覆盖：`asyncPool` / `workflow` / `promptDocument` / `promptLibrary` / `promptWeights` / `promptRobustness` / `imageCache` / `metadata` / `importValidation` / `modelCompatibility` / `translation` / `experience` / `thumbnails`（v1.16）/ `comfySocket`（v1.16）/ `wardrobeNames`（v1.17）/ `promptRules`（v1.18）/ `nodeSkip`（v1.18）/ `translate`（v1.21）/ `promptTemplates`（v1.21）。
 
 **没有覆盖**：`workflowBindings`（占位符替换！）、`workflowGraph`、`workflowLibrary`、`promptPresets`、`serverInventory`、`llm`。这几个是最该补单测的地方，尤其 `resolveGraph` / `autoBind`——它们是唯一决定「发出去的图对不对」的逻辑。
 
@@ -763,13 +764,14 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 | 次序 | 元素 | 原因 |
 | --- | --- | --- |
 | 1 | `button.studio-pc` 服务器胶囊 | 留在顶部，随时能点开连接面板 |
-| 2 | `.configuration-slot` 预设 | 选模型/尺寸是最先要做的事 |
-| 3 | `.studio-prompts` 提示词卡 | 写作区上移，负向与快捷按钮同屏 |
-| 4 | `.render-panel` 实时预览 + `.generate-bar` | **关键**：原来生成条在整页最底（要滑约 1300 px），现在紧跟提示词 |
-| 5-7 | `#studio-workflow` / `.assembly-slot` / `.import-summary` | 低频操作沉到底部，且都是折叠卡 |
-| 8 | `.studio-imports` | 一次性的「从图像取参数 / 存预设」 |
+| 2 | `.studio-prompts` 提示词卡 | 写作区上移，负向与快捷按钮同屏 |
+| 3 | `.render-panel` 实时预览 + `.generate-bar` | **关键**：原来生成条在整页最底（要滑约 1300 px），现在紧跟提示词 |
+| 4-6 | `#studio-workflow` / `.assembly-slot` / `.import-summary` | 低频操作沉到底部，且都是折叠卡 |
+| 7 | `.studio-imports` | 一次性的「从图像取参数」 |
 
-≥900px 两栏：第 1 行 `studio-pc | configuration-slot`，第 2 行起左栏提示词 → 工作流 → 装配 → 导入摘要，右栏 `.render-panel` `grid-row: 2 / span 6` + `position: sticky; top: 16px`。≥1280px 列宽 `1.14fr / 0.86fr`。
+**v1.23 变更**：第 2 项「`.configuration-slot` 预设条」整块删除（连同 `Presets.tsx` / `presetStore.ts`），后续次序各上移一位；`@media (min-width:900px)` 加了 `grid-auto-rows: min-content` 让空行塌陷。
+
+≥900px 两栏：第 1 行 `studio-pc` 跨满，第 2 行起左栏提示词 → 工作流 → 装配 → 导入摘要，右栏 `.render-panel` `grid-row: 1 / span 4` + `position: sticky; top: 16px`。≥1280px 列宽 `1.14fr / 0.86fr`。
 
 ### 三个刻意的取舍（都试过别的写法）
 
@@ -807,6 +809,28 @@ v1.14.0 的 APK 已构建并签名：`dist-apk/huihua-1.14.0-arm64.apk`（77 186
 
 - `StudioNav.tsx` 的三个死锚点（v1.20 清理后 `studio-model` / `studio-loras` / `studio-generation` 在 `src/` 里 grep 计数为 0）。现在 `sections` 四项、`essential` 标记控制可见性，滚动高亮逻辑未变。
 - 复核脚本：`_build/v122-shot.mjs`（四档全页图）、`v122-measure.mjs`（逐元素 top/h/order/grid 与视口截图）、`v122-bar.mjs`（单量生成条）、`v122-theme.mjs`（五主题色值探针）、`v122-scroll.mjs`（三个滚动位置）。都 mock `**/__native`，注意响应要包一层 `{ value: … }`（`src/api.ts` 的 `native()` 取 `json.value`）。
+
+---
+
+## 9.13 v1.23 变更清单（撤掉工坊的预设条）
+
+用户只说「删掉『你的配置』那一行」。工坊原本的第二块（`.configuration-slot#studio-configuration`）就是预设选择器，整块撤掉，连带把 `Presets.tsx` 与 `presetStore.ts` 一并删除。
+
+| # | 动作 | 落点 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 删工坊预设条 | `App.tsx` | 删掉整个 `<div className="configuration-slot" id="studio-configuration">`、`presetRequest` state、`resetSession()` 里的重置、`.studio-imports` 里的「+ 保存预设」按钮 |
+| 2 | 删预设模块 | `Presets.tsx` / `presetStore.ts` / `modelNames.ts` | `Presets` 是唯一调用方；`modelNames.ts` 只剩的 `shortName` 也只被 `Presets.tsx` 用，`grep -rn shortName src` 现在返回空 |
+| 3 | 设置页收口 | `Connections.tsx` | 删「Mes presets」按钮，`onOpen` 签名由 `"workflow" \| "presets"` 收窄成 `"workflow"` |
+| 4 | 快捷导航减到三项 | `StudioNav.tsx` | 预设条没了 → `studio-configuration` 也不存在了，只剩 `studio-workflow` / `studio-prompts` / `studio-render` |
+| 5 | 布局补一行 | `atelier.css` | `@media (min-width:900px)` 的 `.atelier-layout` 加 `grid-auto-rows: min-content`（空行必须塌陷），`.render-panel` 的 `grid-row` 由 `2 / span 6` 改成 `1 / span 4` |
+| 6 | 清死样式 | `mochi.css` / `theme.css` / `experience.css` / `refinements.css` / `polish.css` / `styles.css` / `atelier.css` | 共 7 个文件、约 90 行：`.configuration-slot`、`.studio-configuration`、`.preset-current*`、`.save-preset-shortcut`、`.presets-page*`、`.inference-preset*`、`.size-presets`、`.preset-chip`、`.preset-thumbnail` |
+| 7 | 删文案 + 删测试 | `locales/*.json` / `experience.test.ts` / `promptLibrary.test.ts` | locale 各删 18 条预设 key 与 `Configuration` 一条（**1083 → 1064**）；删两条只测 `parsePreset` 的用例（**101 → 99**） |
+
+**布局结果（`_build/v122-measure.mjs` 实测）**：手机 `390×844` 整页 **1319 px**（撤条前 1374）；桌面 `1180×900` 整页 **909 px**（撤条前 957，左栏底部空白消失，`.render-panel` 的 `grid-row` 变成 `1 / span 4`）。五套主题探针仍全过，night 下 `.render-panel` 与 `.generate-bar` 都是 `rgb(28,31,38)`。
+
+**校验（v1.23）**：`npx tsc -b` 无输出；`npx vitest run` **19 文件 / 99 测试**；`npx playwright test` **20 passed（24.4s）**；`npx vite build` 通过。版本 1.23.0 / versionCode `12300`（`_build/bump-1.23.0.mjs`）。
+
+**为什么没动「服务器资源」里的模型选择**：预设条原本兼着「挑 checkpoint + 尺寸」的职责，但工坊真正的出图参数来自占位符解析（`resolveGraph(custom, settings)`），选模型/尺寸的权威位置一直在设置页的「服务器资源」与画布的 `select` 字段里，所以撤掉预设条不影响出图路径。
 
 
 ## 10. 已知的坑（都踩过）

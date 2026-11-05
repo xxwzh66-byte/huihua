@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Layers,
   Workflow,
-  Bookmark,
   Palette,
   Download,
   Cpu,
@@ -45,7 +44,7 @@ type Props = {
   online: boolean;
   info: ObjectInfo | null;
   workflow: Graph | null;
-  onOpen: (target: "workflow" | "presets") => void;
+  onOpen: (target: "workflow") => void;
   onMessage: (text: string) => void;
 };
 
@@ -280,16 +279,6 @@ export default function Connections({
               <span>
                 <strong>{tr("Workflows ComfyUI")}</strong>
                 <small>{tr("Importer et adapter un workflow API")}</small>
-              </span>
-              <ChevronRight />
-            </button>
-            <button disabled={!server} onClick={() => onOpen("presets")}>
-              <Bookmark />
-              <span>
-                <strong>{tr("Mes presets")}</strong>
-                <small>
-                  {tr("Enregistrer et réutiliser une configuration")}
-                </small>
               </span>
               <ChevronRight />
             </button>

@@ -5,7 +5,7 @@
 .generate-bar { box-shadow: 0 5px 22px #4f4f4f10; }
 .sidebar.sidebar { padding: 10px 22px; width: min(350px,calc(100% - 36px)); height: 72px; }
 .glossary-selection.glossary-selection { bottom: calc(102px + var(--safe-bottom)); }
-.panel,.model-card,.profile-card,.theme-card,.glossary-section,.preset-save,.inference-preset,.import-summary { border: 0 !important; box-shadow: 0 4px 20px #4f4f4f0c; }
+.panel,.model-card,.profile-card,.theme-card,.glossary-section,.import-summary { border: 0 !important; box-shadow: 0 4px 20px #4f4f4f0c; }
 .gallery-card .picture { border: 0 !important; box-shadow: 0 4px 16px #4f4f4f12; }
 .collapsible-card { padding: 0 !important; }
 .card-heading { margin: 0; font-size: 1.2rem; }
@@ -125,14 +125,6 @@
 @media(max-width:760px) { .nav { padding-inline: 4px; font-size: .6rem; }.sidebar { padding-inline: 5px; }.theme-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }.theme-card { padding: 16px; min-height: 164px; }.glossary-selection { bottom: calc(92px + var(--safe-bottom)); }.glossary-selection button { padding-inline: 9px; }.glossary-tag { padding: 10px; gap: 7px; } }
 @media(max-width:360px) { .glossary-tags { grid-template-columns: 1fr; }.prompt-editor { padding-inline: 16px; } }
 .studio-toolbar { flex-wrap: wrap; }
-.preset-save { display: flex; flex-direction: column; padding: 16px; border: 1px solid #dadada; border-radius: 16px; margin: 20px 0; background: #fff; }
-.preset-save label { margin-top: 0; }
-.inference-presets { display: grid; gap: 10px; margin: 20px 0; }
-.inference-preset { display: flex; align-items: center; background: #fff; border: 1px solid #dddddd; border-radius: 16px; padding: 6px; }
-.preset-load { min-width: 0; flex: 1; display: flex; text-align: left; gap: 12px; padding: 10px; border: 0; background: transparent; }
-.preset-load>span { min-width: 0; flex: 1; }.preset-load strong { display: block; overflow-wrap: anywhere; }.preset-load small { display: block; font-size: .7rem; font-weight: 400; color: #737373; margin-top: 4px; overflow-wrap: anywhere; }
-.preset-tools { display: flex; flex-direction: column; gap: 2px; }.preset-tools button { width: 44px; min-height: 44px; padding: 10px; border: 0; background: transparent; }
-.preset-rename { flex: 1; padding: 8px; }.preset-rename>button { margin: 0 5px 5px 0; }
 .lock-screen { inset: 0; margin: 0; max-width: none; max-height: none; width: 100%; height: 100dvh; border: 0; border-radius: 0; padding: 25px; text-align: center; background: #f5f5f5; }
 .lock-screen[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
 .lock-emblem { width: 110px; height: 110px; display: grid; place-items: center; border-radius: 35px; color: #7b7b7b; background: #ebebeb; }

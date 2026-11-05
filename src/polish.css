@@ -43,36 +43,6 @@
 .favorite-button:disabled {
   opacity: 0.65;
 }
-.preset-empty {
-  text-align: center;
-  padding: 36px 20px;
-  color: var(--muted);
-}
-.new-preset-preview {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 20px;
-  background: #f8f8f8;
-  color: var(--ink);
-}
-.new-preset-preview .picture {
-  width: 64px;
-  height: 64px;
-  min-height: 64px;
-  border-radius: 14px;
-  flex-shrink: 0;
-}
-.new-preset-preview small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-}
-.new-preset-dialog form {
-  display: grid;
-  gap: 18px;
-}
 @media (prefers-reduced-motion: reduce) {
   .spin {
     animation: none;

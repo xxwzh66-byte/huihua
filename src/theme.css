@@ -141,7 +141,6 @@ textarea::placeholder {
 .assembly-preview,
 .image-details,
 .prompt-entry,
-.preset-current,
 .shelf-picker,
 .gallery-card,
 .result-strip img,
@@ -372,7 +371,6 @@ textarea::placeholder {
 .output-image .picture,
 .gallery-card .picture,
 .nav-icon,
-.save-preset-shortcut,
 .studio-instruction-toggle,
 .studio-link,
 .llm-actions button:not(.primary):not(:disabled),
@@ -490,8 +488,6 @@ details.settings-group > .settings-menu,
 }
 
 /*
- * Several sheets paint these with a two-class selector (`.prompt-studio
- * .studio-block`, `.studio-imports > .save-preset-shortcut` …), which outranks
  * the single-class rules above. `html[data-theme]` lifts these back on top
  * without touching the "pure" theme, where every token is still white.
  */
@@ -514,8 +510,6 @@ html[data-theme] .studio-block {
   background: transparent;
 }
 
-html[data-theme] .studio-imports > .save-preset-shortcut,
-html[data-theme] .save-preset-shortcut,
 html[data-theme] .studio-instruction-toggle,
 html[data-theme] .workflow-toolbar .segmented,
 html[data-theme] .workflow-toolbar .file-picker,

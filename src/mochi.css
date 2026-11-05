@@ -312,60 +312,6 @@ label select {
   margin: 0;
   color: var(--ink);
 }
-.configuration-slot {
-  min-width: 0;
-}
-.studio-configuration {
-  display: block;
-}
-.preset-current {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  min-height: 44px;
-}
-.preset-current img,
-.preset-current-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  object-fit: cover;
-  flex: 0 0 44px;
-}
-.preset-current-icon {
-  display: grid;
-  place-items: center;
-  background: var(--lavender);
-  color: var(--accent);
-}
-.preset-current > span:not(.preset-current-icon) {
-  flex: 1;
-  min-width: 0;
-}
-.preset-current strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.preset-current small {
-  display: block;
-  font-size: 11px;
-  margin-top: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.preset-current > svg {
-  color: var(--accent);
-}
 .settings-grid.studio-settings {
   display: block;
 }
@@ -1664,7 +1610,6 @@ label select {
     gap: 17px 36px;
   }
   .studio-pc,
-  .configuration-slot,
   .studio-settings,
   .studio-imports {
     grid-column: 1;

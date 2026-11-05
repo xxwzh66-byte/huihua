@@ -73,7 +73,6 @@ const Glossary = lazy(() => import("./Glossary"));
 const Viewer = lazy(() => import("./Viewer"));
 const PromptStudio = lazy(() => import("./PromptStudio"));
 import { rememberPrompt } from "./promptLibrary";
-import Presets from "./Presets";
 import { usePageNavigation, pages, type Page } from "./PageNavigation";
 import ConnectionStatus from "./ConnectionStatus";
 import GalleryGrid from "./GalleryGrid";
@@ -192,10 +191,6 @@ export default function App() {
     viewerSession = useRef(0);
   const [showConnection, setShowConnection] = useState(false);
   const [epoch, setEpoch] = useState(0);
-  const [presetRequest, setPresetRequest] = useState<{
-    id: number;
-    create?: boolean;
-  }>({ id: 0 });
 
   const {
     queue,
@@ -297,7 +292,6 @@ export default function App() {
     };
   }, [hydrate]);
   function resetSession() {
-    setPresetRequest({ id: 0 });
     generation.current++;
     setEpoch(generation.current);
     galleryRequest.current++;
@@ -894,8 +888,6 @@ export default function App() {
           onMessage={notify}
           onOpen={(target) => {
             setTab("create");
-            if (target === "presets")
-              setPresetRequest((v) => ({ id: v.id + 1, create: false }));
             if (target === "workflow")
               requestAnimationFrame(() =>
                 document
@@ -938,31 +930,6 @@ export default function App() {
             </span>
             <ChevronDown size={16} />
           </button>
-          <div
-            className="configuration-slot"
-            id="studio-configuration"
-            tabIndex={-1}
-          >
-            <Presets
-              request={presetRequest}
-              image={results[0]}
-              settings={settings}
-              workflow={custom}
-              onApply={(p) => {
-                setSettings(p.settings);
-                setCustom(p.workflow);
-                setCustomText(
-                  p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
-                );
-                // A preset owns its graph; it is not a library entry.
-                setWorkflowName(p.name);
-                setWorkflowId("");
-                setImported(null);
-                setNotice(tr("Preset « {0} » chargé.", [p.name]));
-                setError("");
-              }}
-            />
-          </div>
           {imported && (
             <CollapsibleCard
               className="import-summary"
@@ -1172,15 +1139,6 @@ export default function App() {
                 }}
               />
             </label>
-            <button
-              className="save-preset-shortcut"
-              onClick={() =>
-                setPresetRequest((v) => ({ id: v.id + 1, create: true }))
-              }
-            >
-              {" "}
-              {tr("+ Enregistrer le preset")}{" "}
-            </button>
           </div>
           <section
             id="studio-render"

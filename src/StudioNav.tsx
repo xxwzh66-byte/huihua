@@ -1,17 +1,19 @@
 import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Bookmark, MessageSquare, SlidersHorizontal, Image } from "lucide-react";
+import { Sparkles, MessageSquare, SlidersHorizontal, Image } from "lucide-react";
 
 /*
  * v1.22: the quick nav used to list six anchors, but three of them
  * (`studio-model`, `studio-loras`, `studio-generation`) have not existed in
  * the tree since the studio was folded into cards — those buttons scrolled
- * nowhere. It now lists the three sections the page actually has, and the
+ * nowhere. It now lists the sections the page actually has, and the
  * `essential` flag replaces the old hard-coded index filter so a collapsed
  * (workflow present) studio still gets a short, honest list.
+ *
+ * The preset strip is gone, so `studio-configuration` no longer exists either;
+ * the list starts at the workflow card.
  */
 const sections = [
-  { id: "studio-configuration", label: "Configuration", Icon: Bookmark, essential: true },
   { id: "studio-workflow", label: "Workflow", Icon: SlidersHorizontal, essential: false },
   { id: "studio-prompts", label: "Prompts", Icon: MessageSquare, essential: true },
   { id: "studio-render", label: "Rendu", Icon: Image, essential: true },

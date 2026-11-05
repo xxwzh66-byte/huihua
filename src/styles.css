@@ -115,12 +115,7 @@ summary { cursor: pointer; color: #6d6d6d; min-height: 44px; padding: 13px 0 9px
 summary .badge { margin-left: 5px; }
 .size-fields { display: grid; grid-template-columns: minmax(0,1fr) 44px minmax(0,1fr); align-items: end; gap: 10px; }
 .size-fields>button { margin-bottom: 17px; height: 47px; padding: 0; }
-.size-presets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin: 20px 0 8px; }
-.size-presets button { display: flex; flex-direction: column; padding: 13px 5px 9px; gap: 5px; border-radius: 13px; font-size: .7rem; }
-.size-presets small { color: #6e6e6e; font-size: .6rem; letter-spacing: -.15px; white-space: nowrap; }
 .ratio-shape { border: 1.5px solid #999999; display: block; border-radius: 3px; margin-bottom: 5px; }
-.preset-chip { display: flex; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
-.preset-chip button { border: 0; background: none; padding-inline: 8px; font-size: .75rem; }
 .seed-field { display: flex; align-items: end; gap: 9px; }
 .seed-field label { flex: 1; min-width: 0; }
 .seed-field>button { margin-bottom: 17px; height: 47px; width: 47px; padding: 0; flex-shrink: 0; }
@@ -293,7 +288,6 @@ dialog::backdrop { background: #30303077; backdrop-filter: blur(8px); }
   main { padding-inline: 12px; } .topbar { padding-inline: 14px; }
   .panel { padding-inline: 15px; } .output-panel { padding-inline: 12px; }
   .topbar>.eyebrow { font-size: .55rem; }
-  .size-presets { gap: 5px; } .size-presets small { font-size: .56rem; }
   .collection-tabs button { font-size: .68rem; padding-inline: 5px; }
   .field-grid { gap: 0 10px; }
   .generate-bar { padding: 10px; } .generate-bar>.primary { min-width: 145px; }
@@ -311,7 +305,6 @@ dialog::backdrop { background: #30303077; backdrop-filter: blur(8px); }
 .prompt-record>strong,.prompt-record>small { display:block; overflow-wrap:anywhere; }
 .prompt-record p { white-space:pre-wrap; overflow-wrap:anywhere; max-height:100px; overflow:auto; }
 .prompt-library li { margin-block:12px; }
-.preset-thumbnail { width:56px; height:64px; object-fit:cover; border-radius:12px; flex-shrink:0; }
 .lora-details>.picture { max-height:240px; }
 .lora-details>.picture img { max-height:240px; object-fit:contain; }
 .lora-description { white-space:pre-wrap; overflow-wrap:anywhere; }
